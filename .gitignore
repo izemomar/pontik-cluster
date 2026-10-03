@@ -1,0 +1,44 @@
+# Gradle
+.gradle/
+build/
+**/build/
+.gradletasknamecache
+
+# Jars are never committed; the wrapper is the one exception
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# Agent configuration, local only
+.claude/
+
+# Engine distribution and local runtime data
+lab/engine-libs/
+lab/data/
+lab-logs/
+
+# Editors and IDEs
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+._*
+Thumbs.db
+
+# Credentials and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.jks
+*.keystore
+
+# Logs and temporary files
+*.log
+tmp/

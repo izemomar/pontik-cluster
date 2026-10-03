@@ -1,0 +1,41 @@
+{
+  "name": "pontik-cluster",
+
+  // The build context is the repository root, because the image copies the Gradle
+  // wrapper from it to warm the distribution. The .dockerignore file keeps build
+  // output and engine jars out of the context.
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+
+  // We mount two things. The first is your host's Docker socket, so test containers
+  // run beside this one on the host daemon. Keep in mind that any bind-mount path you
+  // pass to Compose must therefore be a HOST path. The second is a named volume for
+  // the Gradle home, so your resolved dependencies survive a container rebuild.
+  "mounts": [
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
+    "source=pontik-cluster-gradle-home,target=/opt/gradle-home,type=volume"
+  ],
+
+  // The container runs as root. Mounting the host Docker socket is already
+  // root-equivalent on the host, so a non-root user would not make you any safer
+  // here and would only add uid-mapping and socket-group setup. One thing to know:
+  // on a Linux host, files the container writes into your workspace will be owned by
+  // root. macOS bind mounts remap ownership, so you won't see this there.
+  "remoteUser": "root",
+  "overrideCommand": true,
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "redhat.vscode-yaml",
+        "editorconfig.editorconfig"
+      ]
+    }
+  }
+}

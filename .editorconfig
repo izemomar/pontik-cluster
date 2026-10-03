@@ -1,0 +1,49 @@
+# EditorConfig - https://editorconfig.org
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+max_line_length = 100
+
+[*.java]
+indent_size = 4
+
+[*.{kt,kts}]
+indent_size = 4
+
+[*.{gradle,properties}]
+indent_size = 4
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[*.json]
+indent_size = 2
+
+[*.md]
+indent_size = 2
+# Two trailing spaces are a hard line break in Markdown.
+trim_trailing_whitespace = false
+max_line_length = 88
+
+[*.sql]
+indent_size = 2
+
+[*.{sh,bash}]
+indent_size = 2
+
+# A digest-pinned FROM is a single token and must not be wrapped.
+[Dockerfile]
+max_line_length = unset
+
+# The license text is verbatim, so please don't reformat it.
+[LICENSE]
+insert_final_newline = unset
+trim_trailing_whitespace = false
+max_line_length = unset
