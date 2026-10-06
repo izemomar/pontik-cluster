@@ -11,11 +11,6 @@ build/
 # Agent configuration, local only
 .claude/
 
-# Engine distribution and local runtime data
-lab/engine-libs/
-lab/data/
-lab-logs/
-
 # Editors and IDEs
 .idea/
 *.iml

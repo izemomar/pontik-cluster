@@ -7,9 +7,6 @@ build/
 **/build/
 .claude/
 docs/
-lab/engine-libs/
-lab/data/
-lab-logs/
 *.log
 .idea/
 .vscode/
