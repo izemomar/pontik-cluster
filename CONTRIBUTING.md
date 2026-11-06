@@ -14,8 +14,8 @@ Questions are welcome in the issue tracker, too.
 
 ## Pull Requests
 
-We are not accepting unsolicited pull requests just yet. If you would like to work on
-something, please open an issue first so we can talk it through together.
+We do not accept unsolicited pull requests. If you would like to work on something,
+please open an issue first, so we can talk it through together.
 
 ## Commit Messages
 
