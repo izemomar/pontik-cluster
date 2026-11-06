@@ -1,0 +1,9 @@
+<pluginMetaData path="pontik-cluster">
+	<name>Pontik Cluster</name>
+	<author>Pontik Cluster</author>
+	<pluginVersion>@version@</pluginVersion>
+	<mirthVersion>4.6.0</mirthVersion>
+	<url>https://github.com/izemomar/pontik-cluster</url>
+	<description>Makes sure at most one node in a cluster starts a poll for each protected channel, with automatic failover.</description>
+	<library type="SERVER" path="pontik-cluster-server.jar" />
+</pluginMetaData>

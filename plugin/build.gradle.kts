@@ -6,6 +6,7 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.security.DigestInputStream
 import java.security.MessageDigest
+import org.apache.tools.ant.filters.ReplaceTokens
 
 plugins {
     java
@@ -145,6 +146,42 @@ tasks.compileTestJava {
     options.encoding = "UTF-8"
 }
 
+/*
+|--------------------------------------------------------------------------
+| Packaging
+|--------------------------------------------------------------------------
+|
+| The engine installs a plugin from a zip whose single top-level folder
+| holds plugin.xml and the server jar. A zip without that folder is
+| accepted and installs nothing, so the packaging test checks the layout.
+|
+*/
+
+val pluginVersion = version.toString()
+
+tasks.jar {
+    archiveFileName = "pontik-cluster-server.jar"
+    manifest {
+        attributes("Implementation-Title" to "Pontik Cluster", "Implementation-Version" to pluginVersion)
+    }
+}
+
+val pluginZip = tasks.register<Zip>("pluginZip") {
+    archiveFileName = "pontik-cluster-$pluginVersion.zip"
+    into("pontik-cluster") {
+        from(tasks.jar)
+        from("src/dist/plugin.xml") {
+            filter(ReplaceTokens::class, "tokens" to mapOf("version" to pluginVersion))
+        }
+    }
+}
+
+tasks.assemble {
+    dependsOn(pluginZip)
+}
+
 tasks.test {
     useJUnitPlatform()
+    inputs.files(pluginZip)
+    systemProperty("pontik.zip", pluginZip.get().archiveFile.get().asFile.path)
 }
