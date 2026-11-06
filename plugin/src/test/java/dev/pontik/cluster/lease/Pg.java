@@ -40,6 +40,10 @@ final class Pg {
         return container;
     }
 
+    static String url() {
+        return container().getJdbcUrl();
+    }
+
     static Connection admin() throws SQLException {
         PostgreSQLContainer c = container();
         return DriverManager.getConnection(c.getJdbcUrl(), c.getUsername(), c.getPassword());
@@ -72,5 +76,28 @@ final class Pg {
                 s.execute(statement);
             }
         }
+    }
+
+    /** Drops our tables, so each test starts from an empty database. */
+    static void reset() throws SQLException {
+        execute("DROP TABLE IF EXISTS pcl_node, pcl_lease, pcl_channel_config");
+    }
+
+    /** Creates the tables the way a starting node does, on a second connection. */
+    static void bootstrap(DbSettings db) throws SQLException {
+        try (Connection c = Connections.open(Connections.second(db))) {
+            Bootstrap.run(c);
+        }
+    }
+
+    /** Creates a login that may use the public schema but not create in it, like an engine user a DBA set up. */
+    static void restrictedRole() throws SQLException {
+        execute("DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'restricted') THEN "
+            + "CREATE ROLE restricted LOGIN PASSWORD 'restricted'; END IF; END $$");
+    }
+
+    /** Returns the settings of that login. */
+    static DbSettings restricted() {
+        return new DbSettings("postgres", url(), "restricted", "restricted");
     }
 }
