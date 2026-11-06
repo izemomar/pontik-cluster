@@ -51,6 +51,72 @@ final class Sql {
         + " ON a.attrelid = to_regclass(x.t) AND a.attname = x.c AND NOT a.attisdropped"
         + " WHERE a.atttypid IS DISTINCT FROM 'timestamp'::regtype";
 
+    static final String RENEW = "UPDATE pcl_lease l"
+        + " SET lease_expires_at = clock_timestamp() AT TIME ZONE 'UTC' + ? * interval '1 millisecond',"
+        + " stopped = h.stopped"
+        + " FROM unnest(?::varchar[], ?::bigint[], ?::boolean[]) AS h(channel_id, epoch, stopped)"
+        + " WHERE l.channel_id = h.channel_id"
+        + " AND l.epoch = h.epoch"
+        + " AND l.owner_node_id = ?"
+        + " AND l.lease_expires_at > clock_timestamp() AT TIME ZONE 'UTC'"
+        + " RETURNING l.channel_id, l.epoch";
+
+    static final String READ_BACK = "SELECT c.channel_id, c.mode, c.rereadable,"
+        + " l.owner_node_id, l.epoch, l.lease_expires_at, l.stopped, l.acquired_at,"
+        + " clock_timestamp() AT TIME ZONE 'UTC' AS db_now"
+        + " FROM pcl_channel_config c"
+        + " LEFT JOIN pcl_lease l ON l.channel_id = c.channel_id";
+
+    static final String RELEASE = "UPDATE pcl_lease l"
+        + " SET owner_node_id = NULL, acquired_at = NULL, epoch = l.epoch + 1, stopped = false"
+        + " FROM unnest(?::varchar[], ?::bigint[]) AS r(channel_id, epoch)"
+        + " WHERE l.channel_id = r.channel_id AND l.owner_node_id = ? AND l.epoch = r.epoch"
+        + " RETURNING l.channel_id";
+
+    static final String UPSERT_NODE = "WITH prev AS (SELECT instance_id FROM pcl_node WHERE node_id = ?),"
+        + " up AS ("
+        + "INSERT INTO pcl_node (node_id, node_name, instance_id, protocol_version, plugin_version, last_seen_at)"
+        + " VALUES (?, ?, ?, ?, ?, clock_timestamp() AT TIME ZONE 'UTC')"
+        + " ON CONFLICT (node_id) DO UPDATE"
+        + " SET node_name = EXCLUDED.node_name, instance_id = EXCLUDED.instance_id,"
+        + " protocol_version = EXCLUDED.protocol_version, plugin_version = EXCLUDED.plugin_version,"
+        + " last_seen_at = EXCLUDED.last_seen_at)"
+        + " SELECT (SELECT instance_id FROM prev) AS previous_instance";
+
+    static final String PEERS = "SELECT node_id, node_name, protocol_version FROM pcl_node"
+        + " WHERE node_id <> ?"
+        + " AND last_seen_at > clock_timestamp() AT TIME ZONE 'UTC' - ? * interval '1 millisecond'";
+
+    static final String ACQUIRE = "UPDATE pcl_lease"
+        + " SET owner_node_id = ?, epoch = epoch + 1, acquired_at = clock_timestamp() AT TIME ZONE 'UTC',"
+        + " lease_expires_at = clock_timestamp() AT TIME ZONE 'UTC' + ? * interval '1 millisecond'"
+        + " WHERE channel_id IN ("
+        + "SELECT channel_id FROM pcl_lease"
+        + " WHERE channel_id = ANY (?::varchar[])"
+        + " AND (owner_node_id IS NULL OR lease_expires_at <= clock_timestamp() AT TIME ZONE 'UTC')"
+        + " ORDER BY array_position(?::varchar[], channel_id)"
+        + " LIMIT ?"
+        + " FOR UPDATE SKIP LOCKED)"
+        + " RETURNING channel_id, epoch, stopped";
+
+    static final String INSERT_LEASE = "INSERT INTO pcl_lease AS l"
+        + " (channel_id, owner_node_id, epoch, lease_expires_at, acquired_at)"
+        + " VALUES (?, NULL, 0, clock_timestamp() AT TIME ZONE 'UTC', NULL)"
+        + " ON CONFLICT (channel_id) DO UPDATE SET stopped = false"
+        + " WHERE l.owner_node_id IS NULL OR l.lease_expires_at <= clock_timestamp() AT TIME ZONE 'UTC'";
+
+    static final String UPSERT_CHANNEL_CONFIG = "INSERT INTO pcl_channel_config"
+        + " (channel_id, mode, rereadable, updated_at, updated_by)"
+        + " VALUES (?, ?, ?, clock_timestamp() AT TIME ZONE 'UTC', ?)"
+        + " ON CONFLICT (channel_id) DO UPDATE SET mode = EXCLUDED.mode, rereadable = EXCLUDED.rereadable,"
+        + " updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by";
+
+    static final String MARK_NODE_GONE = "UPDATE pcl_node"
+        + " SET last_seen_at = clock_timestamp() AT TIME ZONE 'UTC' - ? * interval '1 millisecond'"
+        + " WHERE node_id = ? AND instance_id = ?";
+
+    static final String DELETE_CHANNEL_CONFIG = "DELETE FROM pcl_channel_config WHERE channel_id = ?";
+
     private Sql() {
     }
 }

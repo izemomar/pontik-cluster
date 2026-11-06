@@ -1,10 +1,15 @@
 // SPDX-License-Identifier: MPL-2.0
 package dev.pontik.cluster.lease;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.LocalDateTime;
 import java.util.Properties;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
@@ -99,5 +104,29 @@ final class Pg {
     /** Returns the settings of that login. */
     static DbSettings restricted() {
         return new DbSettings("postgres", url(), "restricted", "restricted");
+    }
+
+    static LocalDateTime time(String sql) throws SQLException {
+        return (LocalDateTime) one(sql, LocalDateTime.class);
+    }
+
+    static String text(String sql) throws SQLException {
+        return (String) one(sql, String.class);
+    }
+
+    static boolean bool(String sql) throws SQLException {
+        return (Boolean) one(sql, Boolean.class);
+    }
+
+    static long number(String sql) throws SQLException {
+        return ((Number) one(sql, Long.class)).longValue();
+    }
+
+    /** Reads the first column of the first row on an admin connection. */
+    private static Object one(String sql, Class<?> type) throws SQLException {
+        try (Connection c = admin(); PreparedStatement s = c.prepareStatement(sql); ResultSet rs = s.executeQuery()) {
+            assertTrue(rs.next(), sql);
+            return rs.getObject(1, type);
+        }
     }
 }
