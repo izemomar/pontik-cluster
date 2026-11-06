@@ -10,6 +10,7 @@ build/
 
 # Agent configuration, local only
 .claude/
+.superpowers/
 
 # Editors and IDEs
 .idea/
