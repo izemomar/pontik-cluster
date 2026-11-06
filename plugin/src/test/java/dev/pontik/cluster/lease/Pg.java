@@ -4,6 +4,8 @@ package dev.pontik.cluster.lease;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Properties;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -41,5 +43,34 @@ final class Pg {
     static Connection admin() throws SQLException {
         PostgreSQLContainer c = container();
         return DriverManager.getConnection(c.getJdbcUrl(), c.getUsername(), c.getPassword());
+    }
+
+    static DbSettings settings() {
+        PostgreSQLContainer c = container();
+        return new DbSettings("postgres", c.getJdbcUrl(), c.getUsername(), c.getPassword());
+    }
+
+    /**
+     * The keeper connection's properties with a 10 second login. A loaded test host can take longer
+     * than the production second to start a session, and these tests are not about that budget;
+     * ConnectionsTest checks the production values.
+     */
+    static Properties keeper(DbSettings db) throws SQLException {
+        Properties p = Connections.keeper(db, Timing.STANDARD);
+        p.setProperty("loginTimeout", "10");
+        p.setProperty("connectTimeout", "10");
+        return p;
+    }
+
+    static Properties keeper() throws SQLException {
+        return keeper(settings());
+    }
+
+    static void execute(String... statements) throws SQLException {
+        try (Connection c = admin(); Statement s = c.createStatement()) {
+            for (String statement : statements) {
+                s.execute(statement);
+            }
+        }
     }
 }
