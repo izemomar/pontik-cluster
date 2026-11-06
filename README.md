@@ -4,7 +4,7 @@
 
 ## Introduction
 
-Pontik Cluster is a plugin for Eclipse Open Integration Engine™ that makes sure only
+Pontik Cluster is a plugin for Eclipse Open Integration Engine™ that makes sure at most
 one node of your cluster starts a poll for a given channel at a time. When that node
 stops, another node picks the channel up automatically.
 
@@ -18,8 +18,9 @@ without keeping a single active node or splitting your channels across nodes by 
 
 Pontik Cluster keeps a lease for each protected channel in the database your nodes
 already share. The node holding the lease polls, while the other nodes stand by and
-take over once the lease expires. Lease expiry is always decided on the database
-clock, so clock drift between your nodes can never produce two owners.
+take over once the lease expires. The database clock always decides when a lease
+expires, so the time of day each node's own clock shows plays no part. Each node also
+stops polling shortly before its lease could run out, timed on its own steady clock.
 
 You opt in one channel at a time by choosing its mode:
 
@@ -47,14 +48,13 @@ the supported versions of each in the release notes.
 > [!WARNING]
 > Pontik Cluster reduces duplicate polling, but it cannot rule it out entirely. A poll
 > that is already in flight when a node loses its lease can finish after the new owner
-> has started.
+> has started. Two nodes can also poll at the same time if a node freezes for several
+> seconds at the wrong moment - during a long garbage-collection pause, for example -
+> or if its clock runs much slower than the database's.
 
 Closing that window would require the polled resource itself to honor fencing tokens,
 and you cannot ask that of an SFTP server or an HL7 endpoint. If you need exactly-once
 processing, you should make sure your destinations are idempotent.
-
-You should also set each channel's lease duration to be longer than its longest single
-poll.
 
 Pontik Cluster is provided as-is, without warranty of any kind, and no fitness for any
 purpose, clinical or otherwise, is asserted. It is not a medical device, is not
