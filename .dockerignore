@@ -1,22 +1,7 @@
 # The image build context is the repository root, so this file decides what your
-# Docker daemon receives. The image only copies the Gradle wrapper, so we keep
-# everything else out of the context.
-.git/
-.gradle/
-build/
-**/build/
-.claude/
-docs/
-*.log
-.idea/
-.vscode/
-.DS_Store
-
-# You should never have credentials in the repository, but if one ever lands here,
-# these patterns keep it out of the image.
-.env
-.env.*
-*.pem
-*.p12
-*.jks
-*.keystore
+# Docker daemon receives. The image copies only the Gradle wrapper, so we leave
+# everything else out of the context. If the image ever copies another file, please
+# add it below.
+*
+!gradlew
+!gradle/wrapper/
