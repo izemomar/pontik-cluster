@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 
+import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 import java.io.OutputStream
 import java.net.URI
 import java.nio.file.Files
@@ -10,6 +11,7 @@ import org.apache.tools.ant.filters.ReplaceTokens
 
 plugins {
     java
+    id("de.thetaphi.forbiddenapis") version "3.11"
 }
 
 version = "0.1.0-alpha"
@@ -144,6 +146,28 @@ tasks.compileJava {
 tasks.compileTestJava {
     options.release = 21
     options.encoding = "UTF-8"
+}
+
+/*
+|--------------------------------------------------------------------------
+| Wall Clock
+|--------------------------------------------------------------------------
+|
+| A lease never depends on this node's wall clock, so the build reads the
+| compiled lease classes and fails on any call the signatures file lists,
+| whichever way the source spells it. The tests may read the clock as
+| they please, so their check is off.
+|
+*/
+
+tasks.named<CheckForbiddenApis>("forbiddenApisMain") {
+    signaturesFiles = files(rootProject.file("config/forbidden-apis/wall-clock.txt"))
+    // include() would add to the task's default pattern for every class, so we replace it.
+    setIncludes(listOf("dev/pontik/cluster/lease/**"))
+}
+
+tasks.named("forbiddenApisTest") {
+    enabled = false
 }
 
 /*
