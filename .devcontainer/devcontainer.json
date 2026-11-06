@@ -21,6 +21,15 @@
     "source=pontik-cluster-gradle-home,target=/opt/gradle-home,type=volume"
   ],
 
+  // Test containers publish their ports on your host, so we reach them by the
+  // host's name rather than by the address Testcontainers guesses. Docker Desktop
+  // defines that name for you, but a Linux host does not, so the runArgs line
+  // defines it there.
+  "containerEnv": {
+    "TESTCONTAINERS_HOST_OVERRIDE": "host.docker.internal"
+  },
+  "runArgs": ["--add-host=host.docker.internal:host-gateway"],
+
   // The container runs as root. Mounting the host Docker socket is already
   // root-equivalent on the host, so a non-root user would not make you any safer
   // here and would only add uid-mapping and socket-group setup. One thing to know:
