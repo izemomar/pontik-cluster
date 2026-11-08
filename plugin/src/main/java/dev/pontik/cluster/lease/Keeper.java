@@ -656,6 +656,11 @@ public final class Keeper {
         return lastTickNanos;
     }
 
+    /** Returns the live peers the last tick read. */
+    public List<Store.Peer> peers() {
+        return peers;
+    }
+
     /** Returns the name an operator recognizes for a node, its server name or else its server ID. */
     public String ownerName(String nodeId) {
         if (nodeId.equals(node.id)) {
