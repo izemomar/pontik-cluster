@@ -13,7 +13,9 @@ import dev.pontik.cluster.fault.Sink;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
@@ -224,6 +226,43 @@ class CoordinatorTest {
             // stop() waits the statement budget plus one second for the keeper's thread, then gives up.
             assertTrue(tookMs >= 5_000, tookMs + " ms");
             assertTrue(tookMs < 20_000, tookMs + " ms");
+        } finally {
+            release.countDown();
+            c.stop();
+        }
+    }
+
+    @Test
+    void theFenceDemotesALeaseOnItsOwnThreadWhileTheKeepersThreadIsStuck() throws Exception {
+        // A 12 s lease, so the fence fires 11 s after the send. The heartbeat must leave room for one
+        // statement's 3 s budget after the tick, or the acquisition never fits.
+        Timing quick = new Timing(12_000, 4_000, 1_000, 0, 1_000, 2_000, 1_000);
+        CountDownLatch blocked = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        List<String> threads = Collections.synchronizedList(new ArrayList<>());
+        reconciler.onQueue = id -> threads.add(Thread.currentThread().getName());
+        try (Link link = new Link(Connections.second(Pg.settings()))) {
+            Bootstrap.run(link.get());
+            new ConfigWriter(link).setMode("ch-1", Store.SINGLE_OWNER, false, "test");
+        }
+        Coordinator c = new Coordinator(Pg.settings(), node, quick, new HoldingSink(sink, blocked, release),
+            reconciler);
+        c.local().deployed("ch-1", "ch-1");
+        c.local().verdict("ch-1", null, true);
+        try {
+            c.start();
+            assertTrue(blocked.await(15, TimeUnit.SECONDS), "the keeper reached its acquisition line");
+            assertNotNull(c.ownership().get("ch-1"));
+
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15);
+            while (c.ownership().get("ch-1") != null && System.nanoTime() < deadline) {
+                Thread.sleep(50);
+            }
+
+            assertNull(c.ownership().get("ch-1"), "the fence demoted the lease");
+            assertTrue(c.ownership().mustStop("ch-1"));
+            assertEquals(Collections.singletonList("pontik-cluster-fence"), threads);
+            assertEquals(1, sink.count(Code.PC102));
         } finally {
             release.countDown();
             c.stop();
