@@ -208,6 +208,20 @@ public final class LocalState {
         return c != null && c.acquiredStopped;
     }
 
+    /** Forgets that the lease was acquired from a row an operator stopped, once the reconciler acted on it. */
+    public synchronized void clearAcquiredStopped(String channelId) {
+        Channel c = channels.get(channelId);
+        if (c != null) {
+            c.acquiredStopped = false;
+        }
+    }
+
+    /** Returns whether this node sits out the start-failure cool-down for this channel. */
+    public synchronized boolean coolingDown(String channelId, long nowNanos) {
+        Channel c = channels.get(channelId);
+        return c != null && coolingDown(c, nowNanos);
+    }
+
     public synchronized void setWeStopped(String channelId, boolean stopped) {
         channel(channelId).weStopped = stopped;
     }

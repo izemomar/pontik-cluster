@@ -6,9 +6,11 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * An in-memory database for the keeper's unit tests. It keeps lease and config rows the way the
@@ -35,6 +37,7 @@ final class FakeStore implements Store {
     final Map<String, String> modes = new LinkedHashMap<>();
     final Map<String, Lease> leases = new HashMap<>();
     final List<Peer> peers = new ArrayList<>();
+    final Set<String> rereadable = new HashSet<>();
     String previousInstance;
     LocalDateTime dbNow = LocalDateTime.of(2026, 11, 4, 10, 0);
     Behavior behavior = statement -> { };
@@ -87,9 +90,9 @@ final class FakeStore implements Store {
         for (Map.Entry<String, String> e : modes.entrySet()) {
             Lease lease = leases.get(e.getKey());
             rows.put(e.getKey(), lease == null
-                ? new Row(e.getKey(), e.getValue(), false, null, null, null, null, null)
-                : new Row(e.getKey(), e.getValue(), false, lease.owner, lease.epoch, lease.expiresAt, lease.stopped,
-                    null));
+                ? new Row(e.getKey(), e.getValue(), rereadable.contains(e.getKey()), null, null, null, null, null)
+                : new Row(e.getKey(), e.getValue(), rereadable.contains(e.getKey()), lease.owner, lease.epoch,
+                    lease.expiresAt, lease.stopped, null));
         }
         return new ReadBack(rows, dbNow);
     }

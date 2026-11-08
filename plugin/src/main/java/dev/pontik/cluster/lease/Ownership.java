@@ -104,6 +104,14 @@ public final class Ownership {
         return mustStop.contains(channelId);
     }
 
+    /**
+     * Forgets the stop marker. The reconciler calls this once the source is stopped here, or once
+     * this process holds the channel again.
+     */
+    public void clearMustStop(String channelId) {
+        mustStop.remove(channelId);
+    }
+
     private boolean remove(String channelId, long epoch) {
         boolean[] removed = {false};
         held.computeIfPresent(channelId, (id, e) -> {

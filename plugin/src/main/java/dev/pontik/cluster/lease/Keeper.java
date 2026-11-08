@@ -626,7 +626,11 @@ public final class Keeper {
      * source.
      */
     public boolean anotherHolder(String channelId) {
-        Store.ReadBack rb = readBack;
+        return anotherHolder(readBack, channelId);
+    }
+
+    /** Returns {@link #anotherHolder(String)} judged against the given read-back. */
+    public boolean anotherHolder(Store.ReadBack rb, String channelId) {
         Store.Row row = rb.rows.get(channelId);
         if (row == null || !row.held(rb.dbNow)) {
             return false;
@@ -653,7 +657,7 @@ public final class Keeper {
     }
 
     /** Returns the name an operator recognizes for a node, its server name or else its server ID. */
-    private String ownerName(String nodeId) {
+    public String ownerName(String nodeId) {
         if (nodeId.equals(node.id)) {
             return node.name;
         }
