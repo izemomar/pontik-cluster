@@ -39,6 +39,7 @@ public final class Coordinator implements Names {
     private volatile ScheduledExecutorService keeperThread;
     private volatile ScheduledExecutorService fenceThread;
     private volatile Keeper keeper;
+    private volatile ConfigWriter writer;
 
     public Coordinator(DbSettings db, Node node, Timing timing, Sink sink, Reconciler reconciler) {
         this(db, node, timing, sink, reconciler, System::nanoTime);
@@ -77,6 +78,7 @@ public final class Coordinator implements Names {
                 initial = startup.readBack();
             }
             keeperLink = new Link(Connections.keeper(db, timing));
+            writer = new ConfigWriter(secondLink);
 
             fenceThread = Executors.newSingleThreadScheduledExecutor(r -> daemon(r, "pontik-cluster-fence"));
             keeperThread = Executors.newSingleThreadScheduledExecutor(r -> daemon(r, "pontik-cluster-keeper"));
@@ -167,6 +169,19 @@ public final class Coordinator implements Names {
         return messages;
     }
 
+    public Faults faults() {
+        return faults;
+    }
+
+    public Node node() {
+        return node;
+    }
+
+    /** Returns the writer for mode changes and deleted channels, or null while the coordinator is {@code OFF}. */
+    public ConfigWriter writer() {
+        return keeper == null ? null : writer;
+    }
+
     /** Returns the keeper, or null while the coordinator is {@code OFF}. */
     public Keeper keeper() {
         return keeper;
@@ -221,6 +236,7 @@ public final class Coordinator implements Names {
             fenceThread.shutdownNow();
         }
         keeper = null;
+        writer = null;
         close(keeperLink);
         close(secondLink);
     }

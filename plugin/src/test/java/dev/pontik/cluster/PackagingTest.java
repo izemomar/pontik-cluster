@@ -3,26 +3,36 @@ package dev.pontik.cluster;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 
 class PackagingTest {
 
     private static final String ZIP = System.getProperty("pontik.zip");
+    private static final String SERVER = "pontik-cluster-server.jar";
+    private static final String SHARED = "pontik-cluster-shared.jar";
 
     @Test
-    void theZipHoldsOneFolderWithThePluginFileAndTheJar() throws Exception {
+    void theZipHoldsOneFolderWithThePluginFileAndBothJars() throws Exception {
         List<String> names = new ArrayList<>();
 
         try (ZipFile zip = new ZipFile(ZIP)) {
@@ -33,22 +43,83 @@ class PackagingTest {
 
         assertEquals("pontik-cluster/", names.get(0));
         assertEquals(
-            new HashSet<>(Arrays.asList(
-                "pontik-cluster/", "pontik-cluster/plugin.xml", "pontik-cluster/pontik-cluster-server.jar")),
+            new HashSet<>(Arrays.asList("pontik-cluster/", "pontik-cluster/plugin.xml", "pontik-cluster/" + SERVER,
+                "pontik-cluster/" + SHARED)),
             new HashSet<>(names));
     }
 
     @Test
-    void thePluginFileNamesTheExactEngineVersionAndTheServerJar() throws Exception {
+    void thePluginFileNamesTheExactEngineVersionAndBothJars() throws Exception {
         Element root = pluginXml().getDocumentElement();
 
         assertEquals("pontik-cluster", root.getAttribute("path"));
         assertEquals("4.6.0", text(root, "mirthVersion"));
         assertFalse(text(root, "pluginVersion").contains("@"));
 
-        Element library = (Element) root.getElementsByTagName("library").item(0);
-        assertEquals("SERVER", library.getAttribute("type"));
-        assertEquals("pontik-cluster-server.jar", library.getAttribute("path"));
+        Map<String, String> libraries = new HashMap<>();
+        NodeList list = root.getElementsByTagName("library");
+        for (int i = 0; i < list.getLength(); i++) {
+            Element library = (Element) list.item(i);
+            libraries.put(library.getAttribute("path"), library.getAttribute("type"));
+        }
+        Map<String, String> expected = new HashMap<>();
+        expected.put(SERVER, "SERVER");
+        expected.put(SHARED, "SHARED");
+        assertEquals(expected, libraries);
+    }
+
+    @Test
+    void everyClassThePluginFileNamesIsInTheJarTheEngineLoadsItFrom() throws Exception {
+        Element root = pluginXml().getDocumentElement();
+        Set<String> server = classes(SERVER);
+        Set<String> shared = classes(SHARED);
+
+        NodeList plugins = root.getElementsByTagName("string");
+        assertEquals(1, plugins.getLength());
+        for (int i = 0; i < plugins.getLength(); i++) {
+            assertTrue(server.contains(plugins.item(i).getTextContent().trim()));
+        }
+
+        NodeList providers = root.getElementsByTagName("apiProvider");
+        assertEquals(2, providers.getLength());
+        for (int i = 0; i < providers.getLength(); i++) {
+            Element provider = (Element) providers.item(i);
+            String name = provider.getAttribute("name");
+            assertTrue("SERVLET_INTERFACE".equals(provider.getAttribute("type")) ? shared.contains(name)
+                : server.contains(name), name);
+        }
+    }
+
+    @Test
+    void theSharedJarHoldsOnlyTheRestInterfaceAndItsViews() throws Exception {
+        for (String name : classes(SHARED)) {
+            assertTrue(name.startsWith("dev.pontik.cluster.api.ClusterServletInterface")
+                || name.startsWith("dev.pontik.cluster.api.ChannelView")
+                || name.startsWith("dev.pontik.cluster.api.NodeView"), name);
+        }
+        Set<String> server = classes(SERVER);
+        assertFalse(server.contains("dev.pontik.cluster.api.ClusterServletInterface"));
+        assertTrue(server.contains("dev.pontik.cluster.api.ClusterServlet"));
+    }
+
+    private static Set<String> classes(String jar) throws Exception {
+        Set<String> names = new HashSet<>();
+        try (ZipFile zip = new ZipFile(ZIP);
+                InputStream in = zip.getInputStream(zip.getEntry("pontik-cluster/" + jar))) {
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            byte[] buffer = new byte[8192];
+            for (int n; (n = in.read(buffer)) > 0; ) {
+                bytes.write(buffer, 0, n);
+            }
+            try (ZipInputStream entries = new ZipInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
+                for (ZipEntry e; (e = entries.getNextEntry()) != null; ) {
+                    if (e.getName().endsWith(".class")) {
+                        names.add(e.getName().replace('/', '.').replaceAll("\\.class$", ""));
+                    }
+                }
+            }
+        }
+        return names;
     }
 
     private static Document pluginXml() throws Exception {

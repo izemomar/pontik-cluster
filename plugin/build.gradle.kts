@@ -209,15 +209,35 @@ tasks.check {
 |--------------------------------------------------------------------------
 |
 | The engine installs a plugin from a zip whose single top-level folder
-| holds plugin.xml and the server jar. A zip without that folder is
-| accepted and installs nothing, so the packaging test checks the layout.
+| holds plugin.xml and its jars. A zip without that folder is accepted
+| and installs nothing, so the packaging test checks the layout. The REST
+| interface and the views it returns go in a shared jar, which the engine
+| also loads where it registers the REST calls; everything else goes in
+| the server jar.
 |
 */
 
 val pluginVersion = version.toString()
 
+val shared = listOf(
+    "dev/pontik/cluster/api/ClusterServletInterface*",
+    "dev/pontik/cluster/api/ChannelView*",
+    "dev/pontik/cluster/api/NodeView*",
+)
+
 tasks.jar {
     archiveFileName = "pontik-cluster-server.jar"
+    exclude(shared)
+    manifest {
+        attributes("Implementation-Title" to "Pontik Cluster", "Implementation-Version" to pluginVersion)
+    }
+}
+
+val sharedJar = tasks.register<Jar>("sharedJar") {
+    archiveFileName = "pontik-cluster-shared.jar"
+    from(sourceSets.main.map { it.output }) {
+        include(shared)
+    }
     manifest {
         attributes("Implementation-Title" to "Pontik Cluster", "Implementation-Version" to pluginVersion)
     }
@@ -227,6 +247,7 @@ val pluginZip = tasks.register<Zip>("pluginZip") {
     archiveFileName = "pontik-cluster-$pluginVersion.zip"
     into("pontik-cluster") {
         from(tasks.jar)
+        from(sharedJar)
         from("src/dist/plugin.xml") {
             filter(ReplaceTokens::class, "tokens" to mapOf("version" to pluginVersion))
         }
