@@ -25,13 +25,6 @@ class SourceTreeTest {
     private static final Pattern LITERAL = Pattern.compile("\"((?:[^\"\\\\\\n]|\\\\.)*)\"");
 
     @Test
-    void theLeaseAndFaultPackagesImportNothingFromTheEngine() throws IOException {
-        for (Path file : javaFiles(MAIN.resolve("lease"), MAIN.resolve("fault"))) {
-            assertFalse(read(file).contains("com.mirth"), file + " uses an engine class");
-        }
-    }
-
-    @Test
     void everyStatementLivesInSql() throws IOException {
         // All of our SQL lives in Sql, where SqlTest checks its clock and its writes, and it is all
         // upper case, so a statement anywhere else is one nobody checked. Message text such as

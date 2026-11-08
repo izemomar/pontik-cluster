@@ -130,7 +130,12 @@ java {
 dependencies {
     compileOnly(engineJars)
 
-    testImplementation(engineDriver)
+    // The engine's own Jackson and logging bridges clash with those Testcontainers brings, and no
+    // test needs them.
+    testImplementation(engineJars.filter { jar ->
+        !jar.path.contains("/server-lib/jackson/") && !jar.name.startsWith("slf4j-")
+            && !jar.name.startsWith("log4j-1.2-api")
+    })
     testImplementation(platform("org.junit:junit-bom:6.1.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-postgresql:2.0.5")
@@ -168,6 +173,34 @@ tasks.named<CheckForbiddenApis>("forbiddenApisMain") {
 
 tasks.named("forbiddenApisTest") {
     enabled = false
+}
+
+/*
+|--------------------------------------------------------------------------
+| Engine-Free Packages
+|--------------------------------------------------------------------------
+|
+| The lease keeper and the fault registry never depend on the engine or on
+| our own engine-facing packages. The build compiles them a second time on
+| their own, with only the PostgreSQL driver on the classpath, so an import
+| of either fails the build.
+|
+*/
+
+val compileEngineFree = tasks.register<JavaCompile>("compileEngineFree") {
+    source = fileTree("src/main/java") {
+        include("dev/pontik/cluster/lease/**", "dev/pontik/cluster/fault/**")
+    }
+    classpath = engineDriver
+    destinationDirectory = layout.buildDirectory.dir("engine-free")
+    javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(21) }
+    options.release = 8
+    options.encoding = "UTF-8"
+    options.compilerArgs.addAll(listOf("-Xlint:all", "-Xlint:-options", "-Werror"))
+}
+
+tasks.check {
+    dependsOn(compileEngineFree)
 }
 
 /*
