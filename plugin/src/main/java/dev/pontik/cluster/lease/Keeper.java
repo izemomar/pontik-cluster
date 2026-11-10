@@ -620,16 +620,7 @@ public final class Keeper {
         }
     }
 
-    /**
-     * Returns whether another process holds a valid lease on this channel, either another node or this
-     * server ID under an epoch this process does not hold. Only then does a non-owner stop a running
-     * source.
-     */
-    public boolean anotherHolder(String channelId) {
-        return anotherHolder(readBack, channelId);
-    }
-
-    /** Returns {@link #anotherHolder(String)} judged against the given read-back. */
+    /** Returns whether a node other than this one holds the channel's lease in the given read-back. */
     public boolean anotherHolder(Store.ReadBack rb, String channelId) {
         Store.Row row = rb.rows.get(channelId);
         if (row == null || !row.held(rb.dbNow)) {

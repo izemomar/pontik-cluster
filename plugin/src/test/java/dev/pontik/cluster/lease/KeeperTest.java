@@ -337,13 +337,13 @@ class KeeperTest {
         keeper.tick();
         keeper.acquire();
 
-        assertTrue(keeper.anotherHolder("ch-1"));
-        assertTrue(keeper.anotherHolder("ch-2"));
+        assertTrue(keeper.anotherHolder(keeper.readBack(), "ch-1"));
+        assertTrue(keeper.anotherHolder(keeper.readBack(), "ch-2"));
         assertNull(ownership.get("ch-1"));
-        assertFalse(keeper.anotherHolder("ch-3"));
+        assertFalse(keeper.anotherHolder(keeper.readBack(), "ch-3"));
         assertNotNull(ownership.get("ch-3"));
         nextTick();
-        assertFalse(keeper.anotherHolder("ch-3"));
+        assertFalse(keeper.anotherHolder(keeper.readBack(), "ch-3"));
     }
 
     @Test

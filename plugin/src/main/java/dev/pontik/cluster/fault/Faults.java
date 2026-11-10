@@ -71,16 +71,6 @@ public final class Faults {
         return new ArrayList<>(firing.values());
     }
 
-    /** Returns whether a firing code makes this channel unprotected, through the channel or the node. */
-    public synchronized boolean unprotected(String channelId) {
-        for (Firing f : firing.values()) {
-            if (f.code.unprotected && (f.channelId == null || f.channelId.equals(channelId))) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     String line(Code code, String channelId, String message) {
         String channel = channelId == null ? "" : names.channelName(channelId) + " (" + channelId + ") ";
         return "[PONTIK-CLUSTER] " + code.label() + " " + channel + "on " + names.nodeName()

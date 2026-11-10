@@ -51,19 +51,6 @@ class FaultsTest {
     }
 
     @Test
-    void onlyCodesMarkedUnprotectedMakeAChannelUnprotected() {
-        faults.raise(Code.PC103, "ch-1", "x");
-        assertFalse(faults.unprotected("ch-1"));
-
-        faults.raise(Code.PC114, "ch-1", "x");
-        assertTrue(faults.unprotected("ch-1"));
-        assertFalse(faults.unprotected("ch-2"));
-
-        faults.raise(Code.PC119, null, "x");
-        assertTrue(faults.unprotected("ch-2"));
-    }
-
-    @Test
     void theFiringListHoldsWhatStillFiresWithItsScopeAndMessage() {
         faults.raise(Code.PC103, "ch-1", "no owner");
         faults.raise(Code.PC119, null, "two processes");
