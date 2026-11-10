@@ -49,10 +49,10 @@ public final class ClusterPlugin implements ServicePlugin, ChannelPlugin {
     private volatile ChannelReconciler reconciler;
     private volatile Targets targets;
     private volatile Report report;
-    private EngineSink sink;
-    private ExecutorService lanePool;
-    private ScheduledExecutorService sweeper;
-    private StartListener listener;
+    private volatile EngineSink sink;
+    private volatile ExecutorService lanePool;
+    private volatile ScheduledExecutorService sweeper;
+    private volatile StartListener listener;
 
     @Override
     public String getPluginPointName() {
@@ -102,6 +102,7 @@ public final class ClusterPlugin implements ServicePlugin, ChannelPlugin {
         boolean coordinatorStarted = false;
         try {
             ConfigurationController config = ControllerFactory.getFactory().createConfigurationController();
+            // A cached pool: each channel runs at most one lane at a time, and a stop can block for as long as a poll.
             lanePool = Executors.newCachedThreadPool(r -> daemon(r, "pontik-cluster-lane"));
             Lanes lanes = new Lanes(lanePool, sink);
 
@@ -113,10 +114,10 @@ public final class ClusterPlugin implements ServicePlugin, ChannelPlugin {
                 c.messages(), sink, c, TIMING, c::keeper, System::nanoTime, lanes, t,
                 gate == null ? null : gate::pause);
             lanes.bind(r::reconcile);
-            coordinator = c;
             targets = t;
             reconciler = r;
             report = new Report(c.node(), TIMING, c.ownership(), c.local(), c.faults(), c, r);
+            coordinator = c;
 
             // Before the startup deploy, so a writer and its target deployed together refuse the target.
             try {
