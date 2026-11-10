@@ -17,6 +17,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
@@ -401,6 +402,81 @@ class ChannelReconcilerTest {
         sweep();
         assertFalse(rig.ownership.mustStop("ch-1"));
         assertFalse(rig.faults.isFiring(Code.PC104, "ch-1"));
+    }
+
+    @Test
+    void aStopThatBlocksForAsLongAsAPollStillRaisesPc104AndClearsWhenItLands() throws Exception {
+        own("ch-1");
+        engine.stopGate = new CountDownLatch(1);
+        engine.onStop = (e, id) -> e.set(id, DeployedState.PAUSED, DeployedState.STOPPED);
+        rig.advanceMs(25_000);
+        Thread lane = new Thread(this::drain);
+        lane.start();
+        assertTrue(engine.stopEntered.await(5, TimeUnit.SECONDS));
+
+        rig.advanceMs(31_000);
+        reconciler.sweep();
+        assertTrue(rig.faults.isFiring(Code.PC104, "ch-1"));
+
+        engine.stopGate.countDown();
+        lane.join(5_000);
+        assertFalse(lane.isAlive());
+        assertFalse(rig.faults.isFiring(Code.PC104, "ch-1"));
+        assertFalse(rig.ownership.mustStop("ch-1"));
+    }
+
+    @Test
+    void aStartThatBlocksWarnsOnceFromTheSweepAndReleasesNothing() throws Exception {
+        rig.protect("ch-1");
+        deploy(Models.file("ch-1"), DeployedState.PAUSED, DeployedState.STOPPED);
+        sweep();
+        engine.startGate = new CountDownLatch(1);
+        engine.onStart = (e, id) -> e.set(id, DeployedState.STARTING, DeployedState.STARTING);
+        rig.acquire();
+        Thread lane = new Thread(this::drain);
+        lane.start();
+        assertTrue(engine.startEntered.await(5, TimeUnit.SECONDS));
+        engine.set("ch-1", DeployedState.STARTING, DeployedState.STARTING);
+        for (int i = 0; i < 4; i++) {
+            rig.advanceMs(8_000);
+            rig.tick();
+        }
+
+        reconciler.sweep();
+        reconciler.sweep();
+
+        assertEquals(1, rig.sink.warnings.stream().filter(w -> w.startsWith("The source of ch-1 is still Starting"))
+            .count());
+        assertFalse(rig.faults.isFiring(Code.PC118, "ch-1"));
+        assertNotNull(rig.ownership.get("ch-1"));
+        engine.startGate.countDown();
+        lane.join(5_000);
+        assertFalse(lane.isAlive());
+    }
+
+    @Test
+    void aStartMarkLeftByAnUnreadStatusDoesNotSurviveALostLease() {
+        rig.protect("ch-1");
+        deploy(Models.file("ch-1"), DeployedState.PAUSED, DeployedState.STOPPED);
+        sweep();
+        engine.onStart = (e, id) -> {
+            e.set(id, DeployedState.STARTED, DeployedState.STARTED);
+            e.statusFails = true;
+        };
+        rig.acquire();
+        drain();
+        engine.statusFails = false;
+
+        rig.advanceMs(25_000);
+        drain();
+        assertEquals(1, engine.count("stop ch-1"));
+        rig.expire("ch-1");
+        rig.acquire();
+        drain();
+
+        assertFalse(rig.faults.isFiring(Code.PC118, "ch-1"));
+        assertNotNull(rig.ownership.get("ch-1"));
+        assertEquals(2, engine.count("start ch-1"));
     }
 
     @Test

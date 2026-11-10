@@ -36,7 +36,7 @@ import java.util.function.Supplier;
  * heartbeat, tells the keeper whether the engine is busy and which channels are deployed here, and
  * queues the lanes that have work. It is the backstop for an event the engine never delivered.
  *
- * Every engine call runs on a lane or on the sweep's thread, never on the keeper's.
+ * No engine call ever runs on the keeper's thread.
  */
 final class ChannelReconciler {
 
@@ -219,7 +219,7 @@ final class ChannelReconciler {
                 stopLanded(id);
                 break;
             case WAIT:
-                overdue(id, k, channel, source);
+                overdue(id, channel, source);
                 break;
             default:
                 break;
@@ -282,11 +282,35 @@ final class ChannelReconciler {
         endFights(now);
 
         Store.ReadBack readBack = k.readBack();
+        warnOverdue(k, readBack, fresh, now);
         for (Map.Entry<String, Seen> e : fresh.entrySet()) {
             String id = e.getKey();
             if (Desired.of(facts(k, readBack, id, readBack.rows.get(id), e.getValue().channel, e.getValue().source))
                     != Desired.Action.NONE) {
                 lanes.queue(id);
+            }
+        }
+    }
+
+    // A stop or a start can block a lane for as long as a poll, so the sweep raises the time-based alerts and the
+    // lane keeps the decisions.
+    private void warnOverdue(Keeper k, Store.ReadBack rb, Map<String, Seen> fresh, long now) {
+        long lease = TimeUnit.MILLISECONDS.toNanos(timing.leaseMs);
+        for (Map.Entry<String, Long> e : stopping.entrySet()) {
+            Seen s = fresh.get(e.getKey());
+            if (s != null && now - e.getValue() > lease && s.source != DeployedState.STOPPED) {
+                faults.raise(Code.PC104, e.getKey(), messages.pc104(ownerOf(k, rb, e.getKey()),
+                    messages.stillStopping()));
+            }
+        }
+        for (Map.Entry<String, Long> e : starting.entrySet()) {
+            String id = e.getKey();
+            Seen s = fresh.get(id);
+            if (s != null && now - e.getValue() > lease && s.source != DeployedState.STOPPED
+                    && s.source != DeployedState.STARTED && startWarned.add(id)) {
+                sink.warn("The source of " + names.channelName(id) + " is still " + s.source + " after we started it, "
+                    + "so we keep its lease until it settles. Please check this node's access to the channel's "
+                    + "source.", null);
             }
         }
     }
@@ -435,7 +459,9 @@ final class ChannelReconciler {
     }
 
     private void stop(String id, Keeper k, Desired.Facts f) {
-        String owner = ownerOf(k, id);
+        String owner = ownerOf(k, k.readBack(), id);
+        // A start still marked is over: we are about to stop the source it started.
+        startEnded(id);
         if (f.anotherHolder && !f.mustStop) {
             undo(id, owner);
         } else {
@@ -471,24 +497,16 @@ final class ChannelReconciler {
         faults.clear(Code.PC104, id);
     }
 
-    private void overdue(String id, Keeper k, DeployedState channel, DeployedState source) {
-        long now = nanos.getAsLong();
-        long lease = TimeUnit.MILLISECONDS.toNanos(timing.leaseMs);
-        Long stopAt = stopping.get(id);
-        if (stopAt != null && now - stopAt > lease) {
-            faults.raise(Code.PC104, id, messages.pc104(ownerOf(k, id), messages.stillStopping()));
-        }
+    // The sweep raises the alerts; the lane decides what an overdue start means.
+    private void overdue(String id, DeployedState channel, DeployedState source) {
         Long startAt = starting.get(id);
-        if (startAt != null && now - startAt > lease) {
-            if (source == DeployedState.STOPPED) {
-                startFailed(id, String.valueOf(channel));
-            } else if (source == DeployedState.STARTED) {
-                judgeStart(id, DeployedState.STARTED);
-            } else if (startWarned.add(id)) {
-                sink.warn("The source of " + names.channelName(id) + " is still " + source + " after we started it, "
-                    + "so we keep its lease until it settles. Please check this node's access to the channel's "
-                    + "source.", null);
-            }
+        if (startAt == null || nanos.getAsLong() - startAt <= TimeUnit.MILLISECONDS.toNanos(timing.leaseMs)) {
+            return;
+        }
+        if (source == DeployedState.STOPPED) {
+            startFailed(id, String.valueOf(channel));
+        } else if (source == DeployedState.STARTED) {
+            judgeStart(id, DeployedState.STARTED);
         }
     }
 
@@ -587,8 +605,8 @@ final class ChannelReconciler {
         }
     }
 
-    private String ownerOf(Keeper k, String id) {
-        Store.Row row = k.readBack().rows.get(id);
+    private String ownerOf(Keeper k, Store.ReadBack rb, String id) {
+        Store.Row row = rb.rows.get(id);
         return row == null || row.owner == null ? "another node" : k.ownerName(row.owner);
     }
 }

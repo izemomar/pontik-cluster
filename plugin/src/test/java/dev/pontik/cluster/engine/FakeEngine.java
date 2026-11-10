@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.Predicate;
 
 /**
@@ -34,6 +35,12 @@ final class FakeEngine implements Engine {
     Runnable onEnabled = () -> { };
     Runnable onStatus = () -> { };
     int metadataReads;
+    // A test sets a gate to make the call block, as a real engine does while a poll runs. The entered latch opens
+    // when the call has arrived.
+    volatile CountDownLatch startGate;
+    volatile CountDownLatch stopGate;
+    final CountDownLatch startEntered = new CountDownLatch(1);
+    final CountDownLatch stopEntered = new CountDownLatch(1);
 
     /** Deploys the channel in the given channel and source states. */
     FakeEngine deploy(Channel model, DeployedState channel, DeployedState source) {
@@ -89,15 +96,33 @@ final class FakeEngine implements Engine {
     }
 
     @Override
-    public synchronized void startSource(String channelId) throws Exception {
-        calls.add("start " + channelId);
-        onStart.apply(this, channelId);
+    public void startSource(String channelId) throws Exception {
+        synchronized (this) {
+            calls.add("start " + channelId);
+        }
+        await(startGate, startEntered);
+        synchronized (this) {
+            onStart.apply(this, channelId);
+        }
     }
 
     @Override
-    public synchronized void stopSource(String channelId) throws Exception {
-        calls.add("stop " + channelId);
-        onStop.apply(this, channelId);
+    public void stopSource(String channelId) throws Exception {
+        synchronized (this) {
+            calls.add("stop " + channelId);
+        }
+        await(stopGate, stopEntered);
+        synchronized (this) {
+            onStop.apply(this, channelId);
+        }
+    }
+
+    // The wait holds no lock, so the sweep can read the channel while the call blocks.
+    private static void await(CountDownLatch gate, CountDownLatch entered) throws InterruptedException {
+        if (gate != null) {
+            entered.countDown();
+            gate.await();
+        }
     }
 
     @Override
