@@ -49,7 +49,7 @@ RUN set -eux; \
 # inside it.
 #
 # Each download is verified against a pinned checksum. If a release is ever
-# republished under the same version, the build will fail instead of quietly
+# republished under the same version, the build will fail instead of
 # accepting it. The CLI checksums were resolved 2026-08-16, and the Compose
 # checksums come from the release's checksums.txt, resolved 2026-09-27.
 #

@@ -2,8 +2,8 @@
   "name": "pontik-cluster",
 
   // The build context is the repository root, because the image copies the Gradle
-  // wrapper from it to warm the distribution. The .dockerignore file keeps build
-  // output and engine jars out of the context.
+  // wrapper from it to warm the distribution. The .dockerignore file leaves
+  // everything else out of the context.
   "build": {
     "dockerfile": "Dockerfile",
     "context": ".."
