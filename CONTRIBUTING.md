@@ -29,15 +29,15 @@ write your commit subject in the imperative mood and keep it within 72 character
 Every commit should end with two trailers, in this order:
 
 ```
-Assisted-By: <tool>/<version>
+Assisted-by: <tool>/<version>
 Signed-off-by: Your Name <your.email@example.com>
 ```
 
 ## AI-Assisted Contributions
 
 You are welcome to use AI tools when contributing to Pontik Cluster. We only ask that
-you tell us. The `Assisted-By` trailer names the tool that helped you write the change.
-If you wrote the change by hand, use `Assisted-By: none`. Please don't leave the
+you tell us. The `Assisted-by` trailer names the tool that helped you write the change.
+If you wrote the change by hand, use `Assisted-by: none`. Please don't leave the
 trailer out.
 
 ## Developer Certificate of Origin
