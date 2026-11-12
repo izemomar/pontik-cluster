@@ -1,16 +1,11 @@
 # Gradle
 .gradle/
 build/
-**/build/
 .gradletasknamecache
 
-# Jars are never committed; the wrapper is the one exception
+# We never commit jars; the Gradle wrapper is the one exception
 *.jar
 !gradle/wrapper/gradle-wrapper.jar
-
-# Agent configuration, local only
-.claude/
-.superpowers/
 
 # Editors and IDEs
 .idea/
@@ -29,7 +24,6 @@ Thumbs.db
 # Credentials and local environment
 .env
 .env.*
-!.env.example
 *.pem
 *.p12
 *.jks
