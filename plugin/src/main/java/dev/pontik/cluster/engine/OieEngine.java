@@ -22,8 +22,20 @@ final class OieEngine implements Engine {
 
     @Override
     public DashboardStatus status(String channelId) {
-        List<DashboardStatus> statuses = engine().getChannelStatusList(Collections.singleton(channelId));
-        return statuses.isEmpty() ? null : statuses.get(0);
+        return pick(engine().getChannelStatusList(Collections.singleton(channelId)), channelId);
+    }
+
+    /**
+     * Returns the status of the given channel from the engine's list, or null. The engine adds every channel it
+     * is deploying or undeploying to the list it filters by ID, so the first entry can be another channel.
+     */
+    static DashboardStatus pick(List<DashboardStatus> statuses, String channelId) {
+        for (DashboardStatus status : statuses) {
+            if (channelId.equals(status.getChannelId())) {
+                return status;
+            }
+        }
+        return null;
     }
 
     @Override
