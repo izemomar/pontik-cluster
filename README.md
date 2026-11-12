@@ -5,22 +5,67 @@
 ## Introduction
 
 Pontik Cluster is a plugin for Eclipse Open Integration Engine™ that makes sure at most
-one node of your cluster starts a poll for a given channel at a time. When that node
-stops, another node picks the channel up automatically.
+one node of your cluster starts a poll for each channel you protect. It protects
+channels whose source connector polls: a File Reader, a Database Reader or a
+JavaScript Reader. When the node polling a channel stops, another node takes the
+channel over automatically.
 
 Out of the box, Open Integration Engine - like Mirth® Connect, which it was forked
-from - does not coordinate the nodes of a cluster. If you run it on more than one node,
-every node polls every enabled channel, so the same file, SFTP directory, or database
-row is picked up once per node. Pontik Cluster lets you run all of your nodes at once,
-without keeping a single active node or splitting your channels across nodes by hand.
+from - does not coordinate the nodes of a cluster. When you run it active-active, with
+every node sharing one database and running the same channels at the same time, every
+node polls those channels on its own, so two nodes can read the same file or row.
+Channels that listen, such as an HTTP or TCP Listener, do not have this problem when
+your load balancer sends each message to one node. Pontik Cluster lets you keep every
+node active, instead of falling back to active-passive, where one node works while the
+others wait, or splitting your channels across nodes by hand.
+
+<picture>
+  <source media="(max-width: 767px) and (prefers-reduced-motion: reduce) and (prefers-color-scheme:dark)" srcset="art/pontik-cluster-polling-narrow-dark.png 2x">
+  <source media="(max-width: 767px) and (prefers-reduced-motion: reduce)" srcset="art/pontik-cluster-polling-narrow-light.png 2x">
+  <source media="(max-width: 767px) and (prefers-color-scheme:dark)" srcset="art/pontik-cluster-polling-narrow-dark.svg">
+  <source media="(max-width: 767px)" srcset="art/pontik-cluster-polling-narrow-light.svg">
+  <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme:dark)" srcset="art/pontik-cluster-polling-dark.png 2x">
+  <source media="(prefers-reduced-motion: reduce)" srcset="art/pontik-cluster-polling-light.png 2x">
+  <source media="(prefers-color-scheme: dark)" srcset="art/pontik-cluster-polling-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="art/pontik-cluster-polling-light.svg">
+  <img src="art/pontik-cluster-polling-light.png" alt="Two hand-drawn diagrams of the same three-node cluster. Without Pontik Cluster, every node polls the SFTP inbox and the EHR gets 1001.hl7 three times. With Pontik Cluster, a lease in the engine's PostgreSQL database names node-1 as the owner: only node-1 polls, while node-2 and node-3 wait on standby, Paused and ready to take over.">
+</picture>
 
 ## How It Works
 
-Pontik Cluster keeps a lease for each protected channel in the database your nodes
-already share. The node holding the lease polls, while the other nodes stand by and
-take over once the lease expires. The database clock always decides when a lease
-expires, so the time of day each node's own clock shows plays no part. Each node also
-stops polling shortly before its lease could run out, timed on its own steady clock.
+Your cluster stays active-active: every node keeps running and serving traffic. What
+changes is which node polls a protected channel. For each one, Pontik Cluster keeps a
+lease in your engine's database - a record that lets one node, the channel's owner,
+poll the channel for a limited time - and the owner renews it as long as it keeps
+running and reaches the database. Every other node is on standby for that channel. It
+keeps the channel deployed with its source connector stopped, so the channel shows as
+Paused there, and it takes the channel over once the lease runs out. Your nodes never
+connect to each other. The database alone decides who owns each channel.
+
+The database's clock decides when a lease runs out, so your nodes' clocks do not need
+to agree on the time of day. The owner stops polling six seconds before its lease could
+run out, timed on its own monotonic clock, which measures elapsed time and ignores any
+change to the time of day.
+
+When you stop a node cleanly or undeploy a channel on its owner, the owner hands the
+channel over. It gives up the lease once its source connector has stopped, and a node
+on standby takes the channel over. When a node fails or loses its database, the
+channel fails over instead. The other nodes wait for the lease to run out, and then one
+of them takes the channel over. Either way, the new owner polls at the channel's next
+scheduled poll. There is no automatic failback: when a node comes back, the channels it
+gave up stay with their new owners.
+
+<picture>
+  <source media="(max-width: 767px) and (prefers-reduced-motion: reduce) and (prefers-color-scheme:dark)" srcset="art/pontik-cluster-failover-narrow-dark.png 2x">
+  <source media="(max-width: 767px) and (prefers-reduced-motion: reduce)" srcset="art/pontik-cluster-failover-narrow-light.png 2x">
+  <source media="(max-width: 767px) and (prefers-color-scheme:dark)" srcset="art/pontik-cluster-failover-narrow-dark.svg">
+  <source media="(max-width: 767px)" srcset="art/pontik-cluster-failover-narrow-light.svg">
+  <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme:dark)" srcset="art/pontik-cluster-failover-dark.png 2x">
+  <source media="(prefers-reduced-motion: reduce)" srcset="art/pontik-cluster-failover-light.png 2x">
+  <source media="(prefers-color-scheme: dark)" srcset="art/pontik-cluster-failover-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="art/pontik-cluster-failover-light.svg">
+  <img src="art/pontik-cluster-failover-light.png" alt="Two hand-drawn diagrams of node-1 failing. With one active node, files wait in the inbox until someone starts node-2 by hand. With Pontik Cluster, node-1's lease runs out on the database clock, node-2 takes the lease and picks up the waiting files, and node-1 comes back on standby without taking the channel back.">
+</picture>
 
 You opt in one channel at a time by choosing its mode:
 
@@ -29,19 +74,27 @@ You opt in one channel at a time by choosing its mode:
 | `unmanaged` | The plugin does nothing. This is the default for every channel. |
 | `single-owner` | At most one node starts a poll for the channel's source connector. |
 
-Installing the plugin changes nothing until you set a channel's mode, and removing it
-leaves your engine exactly as it was. Pontik Cluster only ever prevents a read. It
-never deletes, moves, acknowledges, or reorders a message, and it never writes to any
-of the engine's own tables.
+Only a channel whose source connector polls can be protected. A channel that listens
+keeps running on every node behind your load balancer, as it does today, and we refuse
+to protect it: it is reported as `unprotected`, with fault code PC-112.
 
-You always know where a `single-owner` channel stands. It is reported as either
+Installing the plugin changes no channel's behavior until you set its mode, and
+removing it from every node returns every channel to the engine's own behavior. The
+plugin keeps its state in three tables of its own in the engine's database, `pcl_node`,
+`pcl_lease` and `pcl_channel_config`, which stay there until you drop them. Pontik
+Cluster only ever prevents a read. It never deletes, moves, acknowledges, or reorders a
+message, and it never writes to any of the engine's own tables.
+
+You always know where a `single-owner` channel stands. Each node reports it as either
 `protected` or `unprotected`, and if anything degrades, the channel is reported as
 `unprotected` along with a fault code that tells you why.
 
 ## Requirements
 
-Pontik Cluster requires Eclipse Open Integration Engine and PostgreSQL. You can find
-the supported versions of each in the release notes.
+Pontik Cluster runs on two or more Open Integration Engine 4.6.0 servers - we call each
+one a node - that share one PostgreSQL engine database. It adds no server and no
+network path between your nodes: each node opens two more connections to the database
+it already uses.
 
 ## Limitations
 
@@ -52,14 +105,24 @@ the supported versions of each in the release notes.
 > seconds at the wrong moment - during a long garbage-collection pause, for example -
 > or if its clock runs much slower than the database's.
 
-Closing that window would require the polled resource itself to honor fencing tokens,
-and you cannot ask that of an SFTP server or an HL7 endpoint. If you need exactly-once
-processing, you should make sure your destinations are idempotent.
+Closing that window would require the polled system itself to turn away a node that has
+lost its lease, and you cannot ask that of an SFTP server or a partner's database. If
+you need each message processed exactly once, you should make sure your destinations
+are idempotent, which means that receiving the same message twice has the same effect
+as receiving it once.
 
 Pontik Cluster is provided as-is, without warranty of any kind, and no fitness for any
 purpose, clinical or otherwise, is asserted. It is not a medical device, is not
 certified as one, and does not replace the safety controls of the systems it runs
 alongside. Please validate it in your own environment before it carries live traffic.
+
+## Trademarks
+
+Eclipse, Open Integration Engine and OIE are trademarks of Eclipse Foundation AISBL.
+Mirth and Mirth Connect are trademarks of NextGen Healthcare. BridgeLink and any other
+names belong to their respective owners. They are used here only to identify the
+software this plugin works with. Pontik Cluster is not affiliated with, endorsed by,
+or sponsored by any of them.
 
 ## Contributing
 
@@ -75,11 +138,3 @@ vulnerabilities.
 
 Pontik Cluster is open-sourced software licensed under the
 [Mozilla Public License 2.0](LICENSE).
-
-## Trademarks
-
-Eclipse, Open Integration Engine and OIE are trademarks of Eclipse Foundation AISBL.
-Mirth and Mirth Connect are trademarks of NextGen Healthcare. BridgeLink and any other
-names belong to their respective owners. They are used here only to identify the
-software this plugin works with. Pontik Cluster is not affiliated with, endorsed by,
-or sponsored by any of them.
