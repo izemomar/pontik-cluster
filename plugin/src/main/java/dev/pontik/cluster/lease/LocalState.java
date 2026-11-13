@@ -20,8 +20,6 @@ public final class LocalState {
     public enum Release {
         /** Two consecutive idle sweeps found the channel gone. */
         UNDEPLOYED,
-        /** The same, for a lease acquired while the channel was being undeployed. */
-        RACED,
         /** The channel is refused here, so it runs as it does without the plugin. */
         REFUSED,
         /** The owner could not start the source, which therefore is not running. */
@@ -43,7 +41,6 @@ public final class LocalState {
         boolean startFailed;
         boolean operatorStop;
         boolean acquiredStopped;
-        boolean raced;
         int deploys;
     }
 
@@ -75,7 +72,6 @@ public final class LocalState {
         c.weStopped = false;
         c.coolingDown = false;
         c.startFailed = false;
-        c.raced = false;
         c.deploys++;
     }
 
@@ -132,7 +128,7 @@ public final class LocalState {
         }
         boolean fresh = swept && nowNanos - sweptAt <= TimeUnit.MILLISECONDS.toNanos(timing.sweepMaxAgeMs());
         if (c.pending && c.absentSweeps >= 2 && fresh && !busy) {
-            return c.raced ? Release.RACED : Release.UNDEPLOYED;
+            return Release.UNDEPLOYED;
         }
         return null;
     }
@@ -145,19 +141,14 @@ public final class LocalState {
             c.startFailed = false;
             c.operatorStop = false;
             c.acquiredStopped = false;
-            c.raced = false;
         }
     }
 
-    /**
-     * Records that the keeper acquired this channel, and takes the operator's stop from the lease row.
-     * It marks a lease taken while the channel is not deployed here as raced.
-     */
+    /** Records that the keeper acquired this channel, and takes the operator's stop from the lease row. */
     public synchronized void acquired(String channelId, boolean stoppedRow) {
         Channel c = channel(channelId);
         c.operatorStop = stoppedRow;
         c.acquiredStopped = stoppedRow;
-        c.raced = !c.deployed;
     }
 
     /** Returns whether the keeper may try to acquire this channel. */

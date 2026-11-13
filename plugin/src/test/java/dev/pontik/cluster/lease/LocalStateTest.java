@@ -94,14 +94,14 @@ class LocalStateTest {
     }
 
     @Test
-    void anAcquisitionThatRacedTheUndeployIsMarked() {
+    void anAcquisitionThatRacedTheUndeployIsDueLikeAnUndeploy() {
         local.deployed("ch-1", "Orders");
         local.undeployed("ch-1");
         local.acquired("ch-1", false);
         sweep(false, NONE);
         sweep(false, NONE);
 
-        assertEquals(LocalState.Release.RACED, local.releaseDue("ch-1", clock.getAsLong()));
+        assertEquals(LocalState.Release.UNDEPLOYED, local.releaseDue("ch-1", clock.getAsLong()));
     }
 
     @Test

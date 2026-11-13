@@ -542,7 +542,7 @@ class KeeperTest {
         nextTick();
 
         assertNull(ownership.get("ch-1"));
-        assertTrue(sink.info.contains("Released the lease on Orders: it was undeployed while this node acquired it."));
+        assertTrue(sink.info.contains("Released the lease on Orders: undeployed here."));
         assertTrue(sink.fired.isEmpty());
     }
 

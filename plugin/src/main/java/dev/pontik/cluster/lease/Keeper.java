@@ -397,8 +397,6 @@ public final class Keeper {
                 return new Due(id, epoch, "refused (" + local.refusal(id) + ")", true);
             case START_FAILED:
                 return new Due(id, epoch, "could not start it (PC-118)", false);
-            case RACED:
-                return new Due(id, epoch, "it was undeployed while this node acquired it", false);
             default:
                 return new Due(id, epoch, "undeployed here", false);
         }
