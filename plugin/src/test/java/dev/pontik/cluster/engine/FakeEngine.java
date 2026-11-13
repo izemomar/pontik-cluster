@@ -34,6 +34,7 @@ final class FakeEngine implements Engine {
     boolean savedFails;
     Runnable onEnabled = () -> { };
     Runnable onStatus = () -> { };
+    Runnable onDeployed = () -> { };
     int metadataReads;
     // A test sets a gate to make the call block, as a real engine does while a poll runs. The entered latch opens
     // when the call has arrived.
@@ -127,6 +128,7 @@ final class FakeEngine implements Engine {
 
     @Override
     public synchronized Channel deployed(String channelId) {
+        onDeployed.run();
         return states.containsKey(channelId) ? models.get(channelId) : null;
     }
 

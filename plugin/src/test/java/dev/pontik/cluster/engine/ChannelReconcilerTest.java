@@ -783,6 +783,47 @@ class ChannelReconcilerTest {
         assertFalse(rig.local.operatorStop("ch-1"));
     }
 
+    @Test
+    void aSourceStartedByHandForgetsOurMarkSoAnOperatorsLaterPauseStands() {
+        rig.protect("ch-1");
+        deploy(Models.file("ch-1"), DeployedState.PAUSED, DeployedState.STOPPED);
+        assertTrue(rig.local.weStopped("ch-1"));
+        engine.set("ch-1", DeployedState.STARTED, DeployedState.STARTED);
+
+        sweep();
+        assertFalse(rig.local.weStopped("ch-1"));
+
+        rig.acquire();
+        drain();
+        sweep();
+        engine.set("ch-1", DeployedState.PAUSED, DeployedState.STOPPED);
+        sweep();
+        sweep();
+
+        assertEquals(0, engine.count("start ch-1"));
+        assertTrue(rig.local.operatorStop("ch-1"));
+    }
+
+    @Test
+    void aRedeployBetweenTheLanesReadAndItsClearKeepsTheNewCopysMark() {
+        rig.protect("ch-1");
+        deploy(Models.file("ch-1"), DeployedState.PAUSED, DeployedState.STOPPED);
+        engine.set("ch-1", DeployedState.STARTED, DeployedState.STARTED);
+        engine.onDeployed = () -> {
+            engine.onDeployed = () -> { };
+            deploy(Models.file("ch-1"), DeployedState.PAUSED, DeployedState.STOPPED);
+        };
+
+        lanes.queue("ch-1");
+        drain();
+        assertTrue(rig.local.weStopped("ch-1"));
+
+        sweep();
+        rig.acquire();
+        drain();
+        assertEquals(1, engine.count("start ch-1"));
+    }
+
     private ChannelReconciler reconciler(ChannelReconciler.Pause pause) {
         ChannelReconciler r = new ChannelReconciler(engine, rig.ownership, rig.local, rig.faults, rig.messages,
             rig.sink, rig.names, Timing.STANDARD, () -> rig.keeper, rig.clock(), lanes, targets, pause);

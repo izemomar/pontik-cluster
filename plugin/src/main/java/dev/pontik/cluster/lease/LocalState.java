@@ -44,6 +44,7 @@ public final class LocalState {
         boolean operatorStop;
         boolean acquiredStopped;
         boolean raced;
+        int deploys;
     }
 
     private final Timing timing;
@@ -75,6 +76,7 @@ public final class LocalState {
         c.coolingDown = false;
         c.startFailed = false;
         c.raced = false;
+        c.deploys++;
     }
 
     /**
@@ -229,6 +231,20 @@ public final class LocalState {
     public synchronized boolean weStopped(String channelId) {
         Channel c = channels.get(channelId);
         return c != null && c.weStopped;
+    }
+
+    /** Returns how many times the deploy hook ran for this channel, which a lane reads before its status read. */
+    public synchronized int deploys(String channelId) {
+        Channel c = channels.get(channelId);
+        return c == null ? 0 : c.deploys;
+    }
+
+    /** Forgets our stop mark, unless the channel was deployed again since {@code deploys} was read. */
+    public synchronized void forgetWeStopped(String channelId, int deploys) {
+        Channel c = channels.get(channelId);
+        if (c != null && c.deploys == deploys) {
+            c.weStopped = false;
+        }
     }
 
     public synchronized boolean deployedHere(String channelId) {

@@ -173,6 +173,8 @@ final class ChannelReconciler {
         if (k == null) {
             return;
         }
+        // We read the deploy count before the status, so a clear this read justifies never reaches a newer copy.
+        int deploys = local.deploys(id);
         DashboardStatus status;
         try {
             status = engine.status(id);
@@ -198,6 +200,9 @@ final class ChannelReconciler {
 
         DeployedState channel = status == null ? null : status.getState();
         DeployedState source = status == null ? null : Engine.source(status);
+        if (startedElsewhere(id, source)) {
+            local.forgetWeStopped(id, deploys);
+        }
         Desired.Facts f = facts(k, rb, id, row, channel, source);
         switch (Desired.of(f)) {
             case RESTORE:
@@ -210,7 +215,7 @@ final class ChannelReconciler {
                 start(id);
                 break;
             case JUDGE_START:
-                judgeStart(id, source);
+                judgeStart(id, source, deploys);
                 break;
             case STOP:
                 stop(id, k, f);
@@ -219,7 +224,7 @@ final class ChannelReconciler {
                 stopLanded(id);
                 break;
             case WAIT:
-                overdue(id, channel, source);
+                overdue(id, channel, source, deploys);
                 break;
             default:
                 break;
@@ -285,8 +290,10 @@ final class ChannelReconciler {
         warnOverdue(k, readBack, fresh, now);
         for (Map.Entry<String, Seen> e : fresh.entrySet()) {
             String id = e.getKey();
-            if (Desired.of(facts(k, readBack, id, readBack.rows.get(id), e.getValue().channel, e.getValue().source))
-                    != Desired.Action.NONE) {
+            Seen s = e.getValue();
+            // A source someone else started leaves our mark behind, and no action of Desired forgets it.
+            if (Desired.of(facts(k, readBack, id, readBack.rows.get(id), s.channel, s.source)) != Desired.Action.NONE
+                    || startedElsewhere(id, s.source) && local.weStopped(id)) {
                 lanes.queue(id);
             }
         }
@@ -425,6 +432,7 @@ final class ChannelReconciler {
         } catch (Exception e) {
             // A start that throws is judged by the read-back, as one that returns.
         }
+        int deploys = local.deploys(id);
         DashboardStatus after;
         try {
             after = engine.status(id);
@@ -436,14 +444,14 @@ final class ChannelReconciler {
             // The channel was undeployed meanwhile: the release path takes it, and nothing is wrong.
             startEnded(id);
         } else if (Engine.settled(after.getState())) {
-            judgeStart(id, Engine.source(after));
+            judgeStart(id, Engine.source(after), deploys);
         }
     }
 
-    private void judgeStart(String id, DeployedState source) {
+    private void judgeStart(String id, DeployedState source, int deploys) {
         startEnded(id);
         if (source == DeployedState.STARTED) {
-            local.setWeStopped(id, false);
+            local.forgetWeStopped(id, deploys);
             faults.clear(Code.PC118, id);
             sink.info("Started " + names.channelName(id) + ": this node holds the lease.");
         } else {
@@ -498,7 +506,7 @@ final class ChannelReconciler {
     }
 
     // The sweep raises the alerts; the lane decides what an overdue start means.
-    private void overdue(String id, DeployedState channel, DeployedState source) {
+    private void overdue(String id, DeployedState channel, DeployedState source, int deploys) {
         Long startAt = starting.get(id);
         if (startAt == null || nanos.getAsLong() - startAt <= TimeUnit.MILLISECONDS.toNanos(timing.leaseMs)) {
             return;
@@ -506,13 +514,19 @@ final class ChannelReconciler {
         if (source == DeployedState.STOPPED) {
             startFailed(id, String.valueOf(channel));
         } else if (source == DeployedState.STARTED) {
-            judgeStart(id, DeployedState.STARTED);
+            judgeStart(id, DeployedState.STARTED, deploys);
         }
     }
 
     private void startEnded(String id) {
         starting.remove(id);
         startWarned.remove(id);
+    }
+
+    // A source that runs with no start or stop of ours in flight was started by someone else. A running source
+    // stays ours to stop until our stop lands.
+    private boolean startedElsewhere(String id, DeployedState source) {
+        return source == DeployedState.STARTED && !starting.containsKey(id) && !stopping.containsKey(id);
     }
 
     // One start undone is an INFO line; three within the alarm window are a fight, and PC-105.
@@ -555,8 +569,11 @@ final class ChannelReconciler {
 
     private void observe(String id, Seen s, boolean busy, long now) {
         // An operator's Stop or Halt after our pause is the later intent, if a fresh read still says so.
-        if (s.channel == DeployedState.STOPPED && local.weStopped(id) && stoppedNow(id)) {
-            local.setWeStopped(id, false);
+        if (s.channel == DeployedState.STOPPED && local.weStopped(id)) {
+            int deploys = local.deploys(id);
+            if (stoppedNow(id)) {
+                local.forgetWeStopped(id, deploys);
+            }
         }
         if (!Engine.settled(s.channel)) {
             return;
