@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 import org.junit.jupiter.api.Test;
 
 class LocalStateTest {
@@ -24,10 +26,10 @@ class LocalStateTest {
         local.undeployed("ch-1");
 
         sweep(false, NONE);
-        assertNull(local.releaseDue("ch-1", clock.getAsLong()));
+        assertNull(due("ch-1"));
 
         sweep(false, NONE);
-        assertEquals(LocalState.Release.UNDEPLOYED, local.releaseDue("ch-1", clock.getAsLong()));
+        assertEquals(LocalState.Release.UNDEPLOYED, due("ch-1"));
     }
 
     @Test
@@ -38,15 +40,15 @@ class LocalStateTest {
         sweep(false, NONE);
         sweep(true, NONE);
         sweep(false, NONE);
-        assertNull(local.releaseDue("ch-1", clock.getAsLong()));
+        assertNull(due("ch-1"));
 
         sweep(false, CH1);
         sweep(false, NONE);
-        assertNull(local.releaseDue("ch-1", clock.getAsLong()));
+        assertNull(due("ch-1"));
 
         local.deployed("ch-1", "Orders");
         sweep(false, NONE);
-        assertNull(local.releaseDue("ch-1", clock.getAsLong()));
+        assertNull(due("ch-1"));
         assertTrue(local.deployedHere("ch-1"));
     }
 
@@ -58,7 +60,7 @@ class LocalStateTest {
         sweep(false, NONE);
 
         assertFalse(local.deployedHere("ch-1"));
-        assertEquals(LocalState.Release.UNDEPLOYED, local.releaseDue("ch-1", clock.getAsLong()));
+        assertEquals(LocalState.Release.UNDEPLOYED, due("ch-1"));
     }
 
     @Test
@@ -70,7 +72,7 @@ class LocalStateTest {
 
         clock.advanceMs(20_001);
 
-        assertNull(local.releaseDue("ch-1", clock.getAsLong()));
+        assertNull(due("ch-1"));
     }
 
     @Test
@@ -78,7 +80,7 @@ class LocalStateTest {
         local.deployed("ch-1", "Orders");
         local.undeployed("ch-1");
 
-        assertNull(local.releaseDue("ch-1", clock.getAsLong()));
+        assertNull(due("ch-1"));
         assertTrue(local.engineBusy());
     }
 
@@ -86,11 +88,11 @@ class LocalStateTest {
     void aRefusalAndAFailedStartAreDueAtOnce() {
         local.deployed("ch-1", "Orders");
         local.verdict("ch-1", "PC-114", true);
-        assertEquals(LocalState.Release.REFUSED, local.releaseDue("ch-1", clock.getAsLong()));
+        assertEquals(LocalState.Release.REFUSED, due("ch-1"));
 
         local.deployed("ch-2", "Billing");
         local.startFailed("ch-2", clock.getAsLong());
-        assertEquals(LocalState.Release.START_FAILED, local.releaseDue("ch-2", clock.getAsLong()));
+        assertEquals(LocalState.Release.START_FAILED, due("ch-2"));
     }
 
     @Test
@@ -101,7 +103,31 @@ class LocalStateTest {
         sweep(false, NONE);
         sweep(false, NONE);
 
-        assertEquals(LocalState.Release.UNDEPLOYED, local.releaseDue("ch-1", clock.getAsLong()));
+        assertEquals(LocalState.Release.UNDEPLOYED, due("ch-1"));
+    }
+
+    @Test
+    void aDeployWaitsWhileADueLeaseIsReleasedSoItNeverCancelsHalfOfOne() throws Exception {
+        local.deployed("ch-1", "Orders");
+        local.undeployed("ch-1");
+        sweep(false, NONE);
+        sweep(false, NONE);
+        Thread[] hook = new Thread[1];
+
+        LocalState.Release why = local.release("ch-1", clock.getAsLong(), () -> {
+            hook[0] = new Thread(() -> local.deployed("ch-1", "Orders"));
+            hook[0].start();
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (hook[0].getState() != Thread.State.BLOCKED && System.nanoTime() < deadline) {
+                LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(5));
+            }
+            assertEquals(Thread.State.BLOCKED, hook[0].getState());
+            return true;
+        });
+        hook[0].join(5_000);
+
+        assertEquals(LocalState.Release.UNDEPLOYED, why);
+        assertTrue(local.deployedHere("ch-1"));
     }
 
     @Test
@@ -136,7 +162,7 @@ class LocalStateTest {
         local.deployed("ch-1", "Orders");
 
         assertFalse(local.weStopped("ch-1"));
-        assertNull(local.releaseDue("ch-1", clock.getAsLong()));
+        assertNull(due("ch-1"));
         assertTrue(local.eligible("ch-1", clock.getAsLong()));
     }
 
@@ -159,9 +185,9 @@ class LocalStateTest {
         sweep(false, NONE);
         local.undeployed("ch-1");
         sweep(false, NONE);
-        assertNull(local.releaseDue("ch-1", clock.getAsLong()));
+        assertNull(due("ch-1"));
         sweep(false, NONE);
-        assertEquals(LocalState.Release.UNDEPLOYED, local.releaseDue("ch-1", clock.getAsLong()));
+        assertEquals(LocalState.Release.UNDEPLOYED, due("ch-1"));
     }
 
     @Test
@@ -173,7 +199,7 @@ class LocalStateTest {
 
         clock.advanceMs(20_000);
 
-        assertEquals(LocalState.Release.UNDEPLOYED, local.releaseDue("ch-1", clock.getAsLong()));
+        assertEquals(LocalState.Release.UNDEPLOYED, due("ch-1"));
     }
 
     @Test
@@ -228,6 +254,11 @@ class LocalStateTest {
         assertEquals("Orders", local.name("ch-1"));
         assertEquals("ch-2", local.name("ch-2"));
         assertEquals("ch-3", local.name("ch-3"));
+    }
+
+    // Asks whether the lease is due the way the keeper's release step does, with a release that always succeeds.
+    private LocalState.Release due(String channelId) {
+        return local.release(channelId, clock.getAsLong(), () -> true);
     }
 
     private void sweep(boolean busy, Set<String> present) {

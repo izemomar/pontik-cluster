@@ -169,7 +169,7 @@ class ChannelReconcilerTest {
         rig.protect("ch-1");
         Thread hook = new Thread(() -> deploy(Models.file("ch-1"), DeployedState.PAUSED, DeployedState.STOPPED));
 
-        synchronized (rig.local.releaseLock()) {
+        synchronized (rig.local) {
             hook.start();
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
             while (hook.getState() != Thread.State.BLOCKED && System.nanoTime() < deadline) {

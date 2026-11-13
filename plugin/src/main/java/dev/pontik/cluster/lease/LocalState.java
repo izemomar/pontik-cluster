@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 
 /**
  * What this node knows about each channel here: whether it is deployed, whether its lease may be
@@ -52,11 +53,6 @@ public final class LocalState {
 
     public LocalState(Timing timing) {
         this.timing = timing;
-    }
-
-    /** Returns the lock the deploy hook and the keeper's release step share. */
-    public Object releaseLock() {
-        return this;
     }
 
     /**
@@ -114,8 +110,17 @@ public final class LocalState {
         }
     }
 
-    /** Returns why this held lease is due for release now, or null. Call it under {@link #releaseLock()}. */
-    public synchronized Release releaseDue(String channelId, long nowNanos) {
+    /**
+     * Releases the lease through {@code release} if it is due, under the lock the deploy hook takes, and returns
+     * why, or null when it is not due or {@code release} found it gone.
+     */
+    public synchronized Release release(String channelId, long nowNanos, BooleanSupplier release) {
+        Release why = releaseDue(channelId, nowNanos);
+        return why != null && release.getAsBoolean() ? why : null;
+    }
+
+    // Returns why this held lease is due for release now, or null.
+    private Release releaseDue(String channelId, long nowNanos) {
         Channel c = channels.get(channelId);
         if (c == null) {
             return null;

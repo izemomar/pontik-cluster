@@ -363,12 +363,10 @@ public final class Keeper {
 
         List<Due> due = new ArrayList<>();
         long now = nanos.getAsLong();
-        synchronized (local.releaseLock()) {
-            for (Map.Entry<String, Held> e : held.entrySet()) {
-                Due d = due(e.getKey(), e.getValue().epoch, now);
-                if (d != null && ownership.release(d.channelId, d.epoch)) {
-                    due.add(d);
-                }
+        for (Map.Entry<String, Held> e : held.entrySet()) {
+            Due d = due(e.getKey(), e.getValue().epoch, now);
+            if (d != null) {
+                due.add(d);
             }
         }
         if (due.isEmpty()) {
@@ -377,18 +375,20 @@ public final class Keeper {
         return send(due);
     }
 
+    // A due lease leaves the map here. A release that a redeploy could cancel is checked and made under
+    // LocalState's lock, so the deploy hook sees the lease either still held or already gone.
     private Due due(String id, long epoch, long now) {
         if (state == State.DECLINED) {
-            return new Due(id, epoch, "node declined", true);
+            return handBack(id, epoch, "node declined");
         }
         Store.Row row = readBack.rows.get(id);
         if (row == null) {
-            return new Due(id, epoch, "the channel was deleted", true);
+            return handBack(id, epoch, "the channel was deleted");
         }
         if (!row.singleOwner()) {
-            return new Due(id, epoch, "set to unmanaged", true);
+            return handBack(id, epoch, "set to unmanaged");
         }
-        LocalState.Release why = local.releaseDue(id, now);
+        LocalState.Release why = local.release(id, now, () -> ownership.release(id, epoch));
         if (why == null) {
             return null;
         }
@@ -400,6 +400,10 @@ public final class Keeper {
             default:
                 return new Due(id, epoch, "undeployed here", false);
         }
+    }
+
+    private Due handBack(String id, long epoch, String reason) {
+        return ownership.release(id, epoch) ? new Due(id, epoch, reason, true) : null;
     }
 
     private boolean send(List<Due> due) {
