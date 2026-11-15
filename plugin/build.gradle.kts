@@ -52,7 +52,11 @@ abstract class DownloadEngine : DefaultTask() {
         val digest = MessageDigest.getInstance("SHA-256")
 
         target.parentFile.mkdirs()
-        URI(url.get()).toURL().openStream().use { input ->
+        // The default timeouts never expire, so a stalled connection would hang the build with no output.
+        val connection = URI(url.get()).toURL().openConnection()
+        connection.connectTimeout = 30_000
+        connection.readTimeout = 30_000
+        connection.getInputStream().use { input ->
             DigestInputStream(input, digest).use { checked ->
                 partial.outputStream().use { output -> checked.copyTo(output) }
             }
