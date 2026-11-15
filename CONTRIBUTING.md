@@ -15,7 +15,9 @@ Questions are welcome in the issue tracker, too.
 ## Pull Requests
 
 We do not accept unsolicited pull requests. If you would like to work on something,
-please open an issue first, so we can talk it through together.
+please open an issue first, so we can talk it through together. Once we agree on a
+change, please include tests with it: a change in behavior comes with a test that
+fails without it.
 
 ## Commit Messages
 
@@ -50,9 +52,13 @@ will add it for you.
 
 ## Building Locally
 
-The repository ships a devcontainer with JDK 21 and the Gradle wrapper, so there is
-nothing to install on your machine besides Docker. Open the repository in VS Code and
-choose *Reopen in Container*. After that, you may run `./gradlew` inside the container.
+You need Docker and an editor that opens devcontainers, such as VS Code with its Dev
+Containers extension. The devcontainer brings JDK 21 and the Gradle wrapper, so there
+is nothing else to install on your machine.
+
+First, open the repository in VS Code and choose *Reopen in Container*. Next, run
+`./gradlew check` in the container's terminal. It builds the plugin and runs every
+test, including the ones that start PostgreSQL through your Docker.
 
 ## Security Vulnerabilities
 
