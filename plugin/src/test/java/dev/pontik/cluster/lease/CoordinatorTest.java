@@ -208,8 +208,8 @@ class CoordinatorTest {
                 c.stop();
 
                 assertTrue(System.nanoTime() - started < TimeUnit.SECONDS.toNanos(10));
-                assertEquals(Collections.singletonList("The release at shutdown failed, so the leases expire on "
-                    + "their own within one lease. null"), sink.warnings);
+                assertEquals(Collections.singletonList("This node's release at shutdown failed, so its leases run out "
+                    + "on their own within one lease. null"), sink.warnings);
             } finally {
                 c.stop();
             }

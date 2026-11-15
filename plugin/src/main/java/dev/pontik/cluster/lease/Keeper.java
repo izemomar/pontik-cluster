@@ -603,7 +603,7 @@ public final class Keeper {
                 }
             }
             if (released == null) {
-                sink.warn("The release at shutdown failed, so the leases expire on their own within one "
+                sink.warn("This node's release at shutdown failed, so its leases run out on their own within one "
                     + "lease.", null);
                 // With the connection gone twice, the marker could only lengthen the shutdown.
                 if (lost == 2) {

@@ -1089,8 +1089,8 @@ class KeeperTest {
         keeper.shutdown();
 
         assertEquals(list("release", "markGone"), store.callsSince(mark));
-        assertEquals(list("The release at shutdown failed, so the leases expire on their own within one lease. "
-            + "null"), sink.warnings);
+        assertEquals(list("This node's release at shutdown failed, so its leases run out on their own within one "
+            + "lease. null"), sink.warnings);
     }
 
     @Test
