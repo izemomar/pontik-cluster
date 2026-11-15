@@ -88,7 +88,7 @@ public final class Messages {
                 ? "Poll Once on Start is on, so a start on the wrong node would read at once, before the plugin "
                     + "can stop it"
                 : "post-processing runs once after all messages, so a stop partway through a poll would lose rows")
-            + ". Please turn the setting off, or set the mode back to unmanaged.";
+            + ". Please turn the setting off, or use unmanaged for this channel.";
     }
 
     public String pc107CannotCreate(String table) {
@@ -152,7 +152,7 @@ public final class Messages {
 
     public String pc112(String sourceType) {
         return "Refused: the source type is " + sourceType + ", not a File, Database or JavaScript Reader. "
-            + "Please set the mode back to unmanaged.";
+            + "Please use unmanaged for this channel.";
     }
 
     /** Returns the PC-113 text. The database type is the engine's own name for its database, never exception text. */
@@ -168,7 +168,7 @@ public final class Messages {
                 kind = "a JavaScript Reader";
                 break;
             case SCRIPT_MODE:
-                kind = "a Database Reader in script mode";
+                kind = "a Database Reader with Use JavaScript checked";
                 break;
             default:
                 kind = "a select that writes";
@@ -176,12 +176,12 @@ public final class Messages {
         }
         return "Refused: the read may change data (" + kind + "), and the channel is not declared rereadable. "
             + "If a read that this node stops partway leaves its data in place to be read again, set "
-            + "rereadable=true; otherwise, please set the mode back to unmanaged.";
+            + "rereadable=true; otherwise, please use unmanaged for this channel.";
     }
 
     public String pc115(String writer) {
         return "Refused: Channel Writer \"" + writer + "\" sends messages into this channel, and they would fail "
-            + "on every node but the owner. Please route them another way, or set the mode back to unmanaged.";
+            + "on every node but the owner. Please route them another way, or use unmanaged for this channel.";
     }
 
     public String pc116(boolean wholeNode) {

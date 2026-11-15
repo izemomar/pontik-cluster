@@ -54,7 +54,7 @@ final class Modes {
         if (singleOwner) {
             Refusal refusal = Eligibility.judge(channel, declared, writer, messages);
             if (refusal != null) {
-                throw new Rejection(422, refusal.message);
+                throw new Rejection(422, refusal.code.label() + ": " + refusal.message);
             }
         }
         try {

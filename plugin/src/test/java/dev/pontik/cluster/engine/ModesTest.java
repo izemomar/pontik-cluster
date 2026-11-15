@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.mirth.connect.model.Channel;
+import dev.pontik.cluster.fault.Code;
 import dev.pontik.cluster.fault.Messages;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -53,19 +54,20 @@ class ModesTest {
     }
 
     @Test
-    void eachRefusalAnswers422WithItsMessageAndWritesNothing() {
+    void eachRefusalAnswers422WithItsCodeAndMessageAndWritesNothing() {
         Channel pollOnStart = Models.file("ch-1");
         ((com.mirth.connect.donkey.model.channel.PollConnectorPropertiesInterface) pollOnStart.getSourceConnector()
             .getProperties()).getPollConnectorProperties().setPollOnStart(true);
 
-        assertRefused(Models.channelReader("ch-1"), null, messages.pc112("Channel Reader"));
-        assertRefused(pollOnStart, null, messages.pc106(true));
+        assertRefused(Models.channelReader("ch-1"), null, Code.PC112, messages.pc112("Channel Reader"));
+        assertRefused(pollOnStart, null, Code.PC106, messages.pc106(true));
         Channel updateOnce = Models.database("ch-1", "select 1");
         ((com.mirth.connect.connectors.jdbc.DatabaseReceiverProperties) updateOnce.getSourceConnector()
             .getProperties()).setUpdateMode(com.mirth.connect.connectors.jdbc.DatabaseReceiverProperties.UPDATE_ONCE);
-        assertRefused(updateOnce, null, messages.pc106(false));
-        assertRefused(Models.javaScript("ch-1"), null, messages.pc114(Messages.ChangingRead.JAVASCRIPT_READER));
-        assertRefused(Models.file("ch-1"), "Router", messages.pc115("Router"));
+        assertRefused(updateOnce, null, Code.PC106, messages.pc106(false));
+        assertRefused(Models.javaScript("ch-1"), null, Code.PC114,
+            messages.pc114(Messages.ChangingRead.JAVASCRIPT_READER));
+        assertRefused(Models.file("ch-1"), "Router", Code.PC115, messages.pc115("Router"));
         assertTrue(writes.isEmpty());
     }
 
@@ -87,10 +89,10 @@ class ModesTest {
         assertTrue(String.valueOf(r.body).contains("SQLState 08006"));
     }
 
-    private void assertRefused(Channel saved, String writer, String message) {
+    private void assertRefused(Channel saved, String writer, Code code, String message) {
         Rejection r = assertThrows(Rejection.class, () -> set(false, "single-owner", null, saved, writer));
         assertEquals(422, r.status);
-        assertEquals(message, r.body);
+        assertEquals(code.label() + ": " + message, r.body);
     }
 
     private void set(boolean off, String mode, String rereadable, Channel saved, String writer) throws Rejection {

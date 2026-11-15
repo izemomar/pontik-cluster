@@ -47,9 +47,9 @@ class MessagesTest {
     @Test
     void pc106AndPc107SayWhatIsRefusedOrOffAndHowToFixIt() {
         assertEquals("Refused: Poll Once on Start is on, so a start on the wrong node would read at once, before the "
-            + "plugin can stop it. Please turn the setting off, or set the mode back to unmanaged.", m.pc106(true));
+            + "plugin can stop it. Please turn the setting off, or use unmanaged for this channel.", m.pc106(true));
         assertEquals("Refused: post-processing runs once after all messages, so a stop partway through a poll would "
-            + "lose rows. Please turn the setting off, or set the mode back to unmanaged.", m.pc106(false));
+            + "lose rows. Please turn the setting off, or use unmanaged for this channel.", m.pc106(false));
         assertEquals("The plugin is off on this node: the database user may not create table pcl_channel_config. "
             + "Every channel on this node runs as it does without the plugin. Please run the schema script from the "
             + "README, then restart this node.", m.pc107CannotCreate("pcl_channel_config"));
@@ -80,24 +80,24 @@ class MessagesTest {
         assertEquals("This node has not started a lease renewal for 21 seconds. It stops the source of each channel it "
             + "holds before that channel's lease runs out, and the other nodes take the channels over. Please take a "
             + "thread dump of this node and restart it.", m.pc110(21));
-        assertEquals("Refused: the source type is HTTP Listener, not a File, Database or JavaScript Reader. Please set "
-            + "the mode back to unmanaged.", m.pc112("HTTP Listener"));
+        assertEquals("Refused: the source type is HTTP Listener, not a File, Database or JavaScript Reader. Please use "
+            + "unmanaged for this channel.", m.pc112("HTTP Listener"));
         assertEquals("The engine database is mysql; the plugin runs only on PostgreSQL and does nothing on this node. "
             + "Please uninstall it, or move the engine to PostgreSQL.", m.pc113("mysql"));
         assertEquals("Refused: the read may change data (a JavaScript Reader), and the channel is not declared "
             + "rereadable. If a read that this node stops partway leaves its data in place to be read again, set "
-            + "rereadable=true; otherwise, please set the mode back to unmanaged.",
+            + "rereadable=true; otherwise, please use unmanaged for this channel.",
             m.pc114(Messages.ChangingRead.JAVASCRIPT_READER));
-        assertEquals("Refused: the read may change data (a Database Reader in script mode), and the channel is not "
-            + "declared rereadable. If a read that this node stops partway leaves its data in place to be read "
-            + "again, set rereadable=true; otherwise, please set the mode back to unmanaged.",
+        assertEquals("Refused: the read may change data (a Database Reader with Use JavaScript checked), and the "
+            + "channel is not declared rereadable. If a read that this node stops partway leaves its data in place to be read "
+            + "again, set rereadable=true; otherwise, please use unmanaged for this channel.",
             m.pc114(Messages.ChangingRead.SCRIPT_MODE));
         assertEquals("Refused: the read may change data (a select that writes), and the channel is not declared "
             + "rereadable. If a read that this node stops partway leaves its data in place to be read again, set "
-            + "rereadable=true; otherwise, please set the mode back to unmanaged.",
+            + "rereadable=true; otherwise, please use unmanaged for this channel.",
             m.pc114(Messages.ChangingRead.WRITING_SELECT));
         assertEquals("Refused: Channel Writer \"Router\" sends messages into this channel, and they would fail on "
-            + "every node but the owner. Please route them another way, or set the mode back to unmanaged.",
+            + "every node but the owner. Please route them another way, or use unmanaged for this channel.",
             m.pc115("Router"));
         assertEquals("This node cannot reach the engine's runtime copy of this channel, so it cannot keep its source "
             + "paused; this channel runs as configured here. Please redeploy this channel; if it happens again, "
