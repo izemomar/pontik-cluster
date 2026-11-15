@@ -47,6 +47,8 @@ class KeeperTest {
     private final Keeper keeper = new Keeper(store, Timing.STANDARD, me, ownership, local, fence, faults, messages,
         names, reconciler, sink, clock, () -> 0L, Store.ReadBack.EMPTY);
 
+    // The tick and its timing
+
     @Test
     void theSteadyTickIsFourStatementsWithTheRenewalFirst() {
         own("ch-1", "ch-2", "ch-3");
@@ -161,6 +163,96 @@ class KeeperTest {
     }
 
     @Test
+    void aDatabaseTakingFourPointNineSecondsPerStatementNeverDelaysARenewal() {
+        own("ch-1");
+        long start = clock.ms();
+        store.behavior = statement -> clock.advanceMs(4_900);
+        int mark = store.calls.size();
+
+        for (int i = 1; i <= 3; i++) {
+            at(start + i * 10_000L);
+            keeper.tick();
+            keeper.acquire();
+            if (i == 1) {
+                assertEquals(list("renew", "readBack"), store.callsSince(mark));
+            }
+        }
+
+        assertEquals(Arrays.asList(start + 10_000, start + 20_000, start + 30_000), renewTimes());
+        timer.runDue();
+        assertNotNull(ownership.get("ch-1"));
+        assertFalse(ownership.mustStop("ch-1"));
+        assertEquals(0, sink.count(Code.PC102));
+    }
+
+    @Test
+    void aHangingStatementCostsOneTickAndOneFailedTickDoesNotFence() {
+        own("ch-1");
+        long start = clock.ms();
+        AtomicInteger renewals = new AtomicInteger();
+        store.behavior = statement -> {
+            if (statement.equals("renew") && renewals.incrementAndGet() == 1) {
+                clock.advanceMs(3_000);
+                throw new SQLException("socket timeout", "08006");
+            }
+        };
+
+        at(start + 10_000);
+        keeper.tick();
+        at(start + 20_000);
+        keeper.tick();
+        at(start + 24_000);
+        timer.runDue();
+
+        assertEquals(Arrays.asList(start + 10_000, start + 20_000), renewTimes());
+        assertNotNull(ownership.get("ch-1"));
+        assertEquals(0, sink.count(Code.PC102));
+    }
+
+    @Test
+    void aStatementThatCanFinishExactlyWhenTheNextTickIsDueIsStillSent() {
+        own("ch-1");
+        // The renewal takes six seconds, so each later statement's budget of four ends exactly at the next tick.
+        store.behavior = statement -> {
+            if (statement.equals("renew")) {
+                clock.advanceMs(6_000);
+            }
+        };
+        int mark = store.calls.size();
+        clock.advanceMs(10_000);
+
+        keeper.tick();
+
+        assertEquals(list("renew", "readBack", "upsertNode", "peers"), store.callsSince(mark));
+    }
+
+    @Test
+    void aFailedReadBackLeaseWriteOrReleaseEndsTheTick() {
+        own("ch-1");
+        local.undeployed("ch-1");
+        // A protected channel whose lease row is missing, so the tick writes it back.
+        store.modes.put("ch-2", Store.SINGLE_OWNER);
+
+        for (String failing : list("readBack", "insertLease", "release")) {
+            store.behavior = statement -> {
+                if (statement.equals(failing)) {
+                    throw new SQLException("socket", "08006");
+                }
+            };
+            clock.advanceMs(10_000);
+            idleSweeps(2);
+            int mark = store.calls.size();
+
+            keeper.tick();
+
+            List<String> calls = store.callsSince(mark);
+            assertEquals(failing, calls.get(calls.size() - 1), calls.toString());
+        }
+    }
+
+    // Renewals that lose a lease
+
+    @Test
     void aLeaseTheRenewalDoesNotReturnIsDemotedAtOnceAndPc101NamesTheNewOwner() {
         own("ch-1");
         store.holdBy("ch-1", "srv-b", 2);
@@ -238,51 +330,92 @@ class KeeperTest {
     }
 
     @Test
-    void aDatabaseTakingFourPointNineSecondsPerStatementNeverDelaysARenewal() {
+    void pc101ForALeaseLostAtRenewalNamesTheDatabaseTimeAndFiresOnce() {
         own("ch-1");
-        long start = clock.ms();
-        store.behavior = statement -> clock.advanceMs(4_900);
-        int mark = store.calls.size();
+        store.holdBy("ch-1", "srv-b", 2);
 
-        for (int i = 1; i <= 3; i++) {
-            at(start + i * 10_000L);
-            keeper.tick();
-            keeper.acquire();
-            if (i == 1) {
-                assertEquals(list("renew", "readBack"), store.callsSince(mark));
-            }
-        }
+        nextTick();
+        nextTick();
 
-        assertEquals(Arrays.asList(start + 10_000, start + 20_000, start + 30_000), renewTimes());
-        timer.runDue();
-        assertNotNull(ownership.get("ch-1"));
-        assertFalse(ownership.mustStop("ch-1"));
-        assertEquals(0, sink.count(Code.PC102));
+        assertEquals(1, sink.count(Code.PC101));
+        assertTrue(sink.fired.get(0).contains("around 2026-11-04T10:00:00Z;"), sink.fired.get(0));
     }
 
     @Test
-    void aHangingStatementCostsOneTickAndOneFailedTickDoesNotFence() {
+    void pc102ClearsAfterATickWithTheNodeRowWrittenAndNoLeaseAndASecondFenceAlertsAgain() {
         own("ch-1");
-        long start = clock.ms();
-        AtomicInteger renewals = new AtomicInteger();
+        clock.advanceMs(24_000);
+        timer.runDue();
+        assertEquals(1, sink.count(Code.PC102));
+
+        store.leases.get("ch-1").expiresAt = store.dbNow;
         store.behavior = statement -> {
-            if (statement.equals("renew") && renewals.incrementAndGet() == 1) {
-                clock.advanceMs(3_000);
-                throw new SQLException("socket timeout", "08006");
+            if (statement.equals("upsertNode")) {
+                throw new SQLException("socket", "08006");
             }
         };
-
-        at(start + 10_000);
         keeper.tick();
-        at(start + 20_000);
-        keeper.tick();
-        at(start + 24_000);
-        timer.runDue();
+        assertTrue(faults.isFiring(Code.PC102, null));
 
-        assertEquals(Arrays.asList(start + 10_000, start + 20_000), renewTimes());
+        store.behavior = statement -> { };
+        keeper.tick();
+        assertFalse(faults.isFiring(Code.PC102, null));
+
+        keeper.acquire();
         assertNotNull(ownership.get("ch-1"));
-        assertEquals(0, sink.count(Code.PC102));
+        clock.advanceMs(24_000);
+        timer.runDue();
+        assertEquals(2, sink.count(Code.PC102));
     }
+
+    @Test
+    void theFirstConfirmedRenewalAfterAFenceClearsPc102() {
+        store.protect("ch-1", "ch-2");
+        deploy("ch-1");
+        keeper.tick();
+        keeper.acquire();
+        // The renewal fails while this node takes ch-2, so the two leases end up with different deadlines.
+        store.behavior = statement -> {
+            if (statement.equals("renew")) {
+                throw new SQLException("socket", "08006");
+            }
+        };
+        deploy("ch-2");
+        nextTick();
+        clock.advanceMs(14_000);
+        timer.runDue();
+        assertTrue(faults.isFiring(Code.PC102, null));
+        assertNotNull(ownership.get("ch-2"));
+
+        store.behavior = statement -> { };
+        clock.advanceMs(6_000);
+        keeper.tick();
+
+        assertNotNull(ownership.get("ch-2"));
+        assertFalse(faults.isFiring(Code.PC102, null));
+    }
+
+    @Test
+    void pc102StaysThroughATickThatRunsOutOfTimeBeforeTheNodeRow() {
+        own("ch-1");
+        clock.advanceMs(24_000);
+        timer.runDue();
+        assertTrue(faults.isFiring(Code.PC102, null));
+        // The read-back takes seven seconds, so the node row could still be running when the next tick is due.
+        store.behavior = statement -> {
+            if (statement.equals("readBack")) {
+                clock.advanceMs(7_000);
+            }
+        };
+        int mark = store.calls.size();
+
+        keeper.tick();
+
+        assertEquals(list("readBack"), store.callsSince(mark));
+        assertTrue(faults.isFiring(Code.PC102, null));
+    }
+
+    // Acquisition and the fair share
 
     @Test
     void newCandidatesFillTheFairShareAndCarriedOnesAreTakenWholeAndFirst() {
@@ -328,6 +461,82 @@ class KeeperTest {
     }
 
     @Test
+    void newCandidatesFillOnlyWhatIsLeftOfTheFairShare() {
+        store.peers.add(new Store.Peer("srv-b", "node-b", Node.PROTOCOL));
+        own("ch-1");
+        store.protect("ch-2", "ch-3", "ch-4");
+        deploy("ch-2", "ch-3", "ch-4");
+
+        nextTick();
+
+        // Four channels and two live nodes make a fair share of two, and this node already holds one.
+        assertEquals(Integer.valueOf(1), store.acquireShares.get(store.acquireShares.size() - 1));
+        assertEquals(2, ownership.size());
+    }
+
+    @Test
+    void aSerializationFailureOnTheAcquisitionMeansNotAcquiredAndNothingToReport() {
+        store.protect("ch-1");
+        deploy("ch-1");
+        keeper.tick();
+        store.behavior = statement -> {
+            if (statement.equals("acquire")) {
+                throw new SQLException("could not serialize access", "40001");
+            }
+        };
+
+        keeper.acquire();
+
+        assertTrue(ownership.isEmpty());
+        assertTrue(sink.fired.isEmpty());
+        assertTrue(sink.warnings.isEmpty());
+        assertEquals(Keeper.State.RUNNING, keeper.state());
+    }
+
+    @Test
+    void anAcquisitionLogsOneLineAndARenewalLogsNone() {
+        own("ch-1");
+        assertEquals(list("Acquired the lease on \"Orders\" (epoch 1)."), sink.info);
+
+        nextTick();
+        nextTick();
+
+        assertEquals(1, sink.info.size());
+    }
+
+    @Test
+    void anAcquisitionClearsItsPc103AndQueuesTheChannelForTheReconciler() {
+        store.protect("ch-1");
+        deploy("ch-1");
+        local.observed("ch-1", true, false);
+        keeper.tick();
+        for (int i = 0; i < 10; i++) {
+            nextTick();
+        }
+        assertTrue(faults.isFiring(Code.PC103, "ch-1"));
+
+        local.observed("ch-1", false, false);
+        reconciler.queued.clear();
+        nextTick();
+
+        assertNotNull(ownership.get("ch-1"));
+        assertFalse(faults.isFiring(Code.PC103, "ch-1"));
+        assertEquals(list("ch-1"), reconciler.queued);
+    }
+
+    @Test
+    void aMissingLeaseRowOfAProtectedChannelIsWrittenBack() {
+        store.modes.put("ch-1", Store.SINGLE_OWNER);
+
+        keeper.tick();
+
+        assertTrue(store.calls.contains("insertLease"));
+        assertNotNull(store.leases.get("ch-1"));
+    }
+
+    // Another holder and a duplicate server ID
+
+    @Test
     void anotherHolderIncludesOurServerIdUnderAnEpochThisProcessDoesNotHold() {
         store.protect("ch-1", "ch-2", "ch-3");
         deploy("ch-1", "ch-2", "ch-3");
@@ -344,6 +553,27 @@ class KeeperTest {
         assertNotNull(ownership.get("ch-3"));
         nextTick();
         assertFalse(keeper.anotherHolder(keeper.readBack(), "ch-3"));
+    }
+
+    @Test
+    void anOwnerIsNamedByTheServerNameThisNodeKnowsElseByItsServerId() {
+        own("ch-1", "ch-2", "ch-3");
+        long ownEpoch = ownership.get("ch-1").epoch;
+        // A peer seen on a tick of its own, so the next tick can name srv-b. Added after the acquisition,
+        // because a second live node would cut this node's fair share below three channels.
+        store.peers.add(new Store.Peer("srv-b", "node-b", Node.PROTOCOL));
+        keeper.tick();
+
+        // This node's own server ID under a newer epoch, a known peer, and a server ID no peer names.
+        store.holdBy("ch-1", "srv-a", ownEpoch + 1);
+        store.holdBy("ch-2", "srv-b", 2);
+        store.holdBy("ch-3", "srv-c", 2);
+        nextTick();
+
+        assertEquals(3, sink.count(Code.PC101));
+        assertFired("ch-1", "the database now names \"node-a\" as the owner (epoch " + (ownEpoch + 1) + ")");
+        assertFired("ch-2", "the database now names \"node-b\" as the owner (epoch 2)");
+        assertFired("ch-3", "the database now names \"srv-c\" as the owner (epoch 2)");
     }
 
     @Test
@@ -388,6 +618,8 @@ class KeeperTest {
         assertEquals(1, sink.count(Code.PC119));
     }
 
+    // Declining
+
     @Test
     void aPeerWithAnUnknownProtocolMakesThisNodeDeclineAndReleaseAtTheNextTick() {
         own("ch-1");
@@ -405,6 +637,47 @@ class KeeperTest {
         keeper.acquire();
         assertEquals(list(), store.callsSince(mark));
     }
+
+    @Test
+    void aNodeThatDeclinesClearsItsPc103AndRaisesNoneForTheChannelsItHandsBack() {
+        own("ch-2");
+        store.protect("ch-1");
+        deploy("ch-1");
+        local.observed("ch-1", true, false);
+        for (int i = 0; i < 11; i++) {
+            nextTick();
+        }
+        assertTrue(faults.isFiring(Code.PC103, "ch-1"));
+
+        store.peers.add(new Store.Peer("srv-b", "node-b", 2));
+        nextTick();
+        nextTick();
+        assertEquals(Keeper.State.DECLINED, keeper.state());
+        assertTrue(ownership.isEmpty());
+        assertFalse(faults.isFiring(Code.PC103, "ch-1"));
+
+        for (int i = 0; i < 11; i++) {
+            nextTick();
+        }
+        assertEquals(1, sink.count(Code.PC103));
+    }
+
+    @Test
+    void aNodeThatDeclinesQueuesEveryChannelForTheReconcilerAtOnce() {
+        own("ch-1");
+        store.protect("ch-2");
+        nextTick();
+        reconciler.queued.clear();
+        store.peers.add(new Store.Peer("srv-b", "node-b", 2));
+
+        clock.advanceMs(10_000);
+        keeper.tick();
+
+        assertEquals(Keeper.State.DECLINED, keeper.state());
+        assertTrue(reconciler.queued.containsAll(list("ch-1", "ch-2")), reconciler.queued.toString());
+    }
+
+    // A channel with no owner
 
     @Test
     void aColdStartRaisesNoPc103AndAChannelStoppedHereWithNoOwnerRaisesItAfterNinetySeconds() {
@@ -444,29 +717,7 @@ class KeeperTest {
         assertTrue(sink.fired.get(0).contains("On this node it is stopped."), sink.fired.get(0));
     }
 
-    @Test
-    void aNodeThatDeclinesClearsItsPc103AndRaisesNoneForTheChannelsItHandsBack() {
-        own("ch-2");
-        store.protect("ch-1");
-        deploy("ch-1");
-        local.observed("ch-1", true, false);
-        for (int i = 0; i < 11; i++) {
-            nextTick();
-        }
-        assertTrue(faults.isFiring(Code.PC103, "ch-1"));
-
-        store.peers.add(new Store.Peer("srv-b", "node-b", 2));
-        nextTick();
-        nextTick();
-        assertEquals(Keeper.State.DECLINED, keeper.state());
-        assertTrue(ownership.isEmpty());
-        assertFalse(faults.isFiring(Code.PC103, "ch-1"));
-
-        for (int i = 0; i < 11; i++) {
-            nextTick();
-        }
-        assertEquals(1, sink.count(Code.PC103));
-    }
+    // Releases
 
     @Test
     void aRedeployWhoseHookArrivesBeforeTheSecondIdleSweepKeepsTheLease() {
@@ -629,71 +880,39 @@ class KeeperTest {
     }
 
     @Test
-    void aMissingLeaseRowOfAProtectedChannelIsWrittenBack() {
-        store.modes.put("ch-1", Store.SINGLE_OWNER);
-
-        keeper.tick();
-
-        assertTrue(store.calls.contains("insertLease"));
-        assertNotNull(store.leases.get("ch-1"));
-    }
-
-    @Test
-    void pc102ClearsAfterATickWithTheNodeRowWrittenAndNoLeaseAndASecondFenceAlertsAgain() {
+    void aReleaseThatSucceedsForgetsTheStartFailureSoALeaseTakenAgainIsKept() {
         own("ch-1");
-        clock.advanceMs(24_000);
-        timer.runDue();
-        assertEquals(1, sink.count(Code.PC102));
+        local.startFailed("ch-1", clock.getAsLong());
+        nextTick();
+        assertNull(ownership.get("ch-1"));
 
-        store.leases.get("ch-1").expiresAt = store.dbNow;
-        store.behavior = statement -> {
-            if (statement.equals("upsertNode")) {
-                throw new SQLException("socket", "08006");
-            }
-        };
-        keeper.tick();
-        assertTrue(faults.isFiring(Code.PC102, null));
-
-        store.behavior = statement -> { };
-        keeper.tick();
-        assertFalse(faults.isFiring(Code.PC102, null));
-
-        keeper.acquire();
+        // The cool-down passes, so this node takes the channel again.
+        clock.advanceMs(90_000);
+        nextTick();
         assertNotNull(ownership.get("ch-1"));
-        clock.advanceMs(24_000);
-        timer.runDue();
-        assertEquals(2, sink.count(Code.PC102));
+
+        int mark = store.calls.size();
+        nextTick();
+
+        assertFalse(store.callsSince(mark).contains("release"));
+        assertNotNull(ownership.get("ch-1"));
     }
 
     @Test
-    void aSerializationFailureOnTheAcquisitionMeansNotAcquiredAndNothingToReport() {
+    void aChannelWhoseModeChangesIsQueuedForTheReconcilerOnce() {
         store.protect("ch-1");
-        deploy("ch-1");
         keeper.tick();
-        store.behavior = statement -> {
-            if (statement.equals("acquire")) {
-                throw new SQLException("could not serialize access", "40001");
-            }
-        };
+        assertEquals(list("ch-1"), reconciler.queued);
 
-        keeper.acquire();
+        keeper.tick();
+        assertEquals(list("ch-1"), reconciler.queued);
 
-        assertTrue(ownership.isEmpty());
-        assertTrue(sink.fired.isEmpty());
-        assertTrue(sink.warnings.isEmpty());
-        assertEquals(Keeper.State.RUNNING, keeper.state());
+        store.modes.put("ch-1", Store.UNMANAGED);
+        keeper.tick();
+        assertEquals(list("ch-1", "ch-1"), reconciler.queued);
     }
 
-    @Test
-    void anAcquisitionLogsOneLineAndARenewalLogsNone() {
-        own("ch-1");
-        assertEquals(list("Acquired the lease on \"Orders\" (epoch 1)."), sink.info);
-
-        nextTick();
-        nextTick();
-
-        assertEquals(1, sink.info.size());
-    }
+    // Operator stops
 
     @Test
     void theRenewalWritesTheOperatorStopAndAnAcquisitionStartsItFromTheRow() {
@@ -709,6 +928,8 @@ class KeeperTest {
         assertTrue(local.operatorStop("ch-2"));
         assertTrue(local.acquiredStopped("ch-2"));
     }
+
+    // The read-back
 
     @Test
     void aNodeWithoutAReadBackForTwoHeartbeatsLogsOneWarningAndOneLineWhenItReadsAgain() {
@@ -784,6 +1005,42 @@ class KeeperTest {
     }
 
     @Test
+    void theStatusCallReadsTheLatestReadBackItsAgeAndTheLastTick() {
+        store.protect("ch-1");
+        clock.advanceMs(10_000);
+        long tickedAt = clock.getAsLong();
+        keeper.tick();
+        clock.advanceMs(3_000);
+
+        assertTrue(keeper.readBack().rows.containsKey("ch-1"));
+        assertEquals(3_000, keeper.readBackAgeMs());
+        assertEquals(tickedAt, keeper.lastTickNanos());
+    }
+
+    @Test
+    void theReadBackAgeCountsFromTheLastReadBackThatSucceeded() {
+        keeper.tick();
+        clock.advanceMs(3_000);
+        assertEquals(3_000, keeper.readBackAgeMs());
+
+        store.behavior = statement -> {
+            if (statement.equals("readBack")) {
+                throw new SQLException("socket", "08006");
+            }
+        };
+        clock.advanceMs(7_000);
+        keeper.tick();
+        assertEquals(10_000, keeper.readBackAgeMs());
+
+        store.behavior = statement -> { };
+        clock.advanceMs(10_000);
+        keeper.tick();
+        assertEquals(0, keeper.readBackAgeMs());
+    }
+
+    // Shutdown
+
+    @Test
     void shutdownReleasesEveryLeaseInOneStatementThenMarksTheNodeGone() {
         own("ch-1", "ch-2");
         int mark = store.calls.size();
@@ -856,171 +1113,6 @@ class KeeperTest {
     }
 
     @Test
-    void theFirstConfirmedRenewalAfterAFenceClearsPc102() {
-        store.protect("ch-1", "ch-2");
-        deploy("ch-1");
-        keeper.tick();
-        keeper.acquire();
-        // The renewal fails while this node takes ch-2, so the two leases end up with different deadlines.
-        store.behavior = statement -> {
-            if (statement.equals("renew")) {
-                throw new SQLException("socket", "08006");
-            }
-        };
-        deploy("ch-2");
-        nextTick();
-        clock.advanceMs(14_000);
-        timer.runDue();
-        assertTrue(faults.isFiring(Code.PC102, null));
-        assertNotNull(ownership.get("ch-2"));
-
-        store.behavior = statement -> { };
-        clock.advanceMs(6_000);
-        keeper.tick();
-
-        assertNotNull(ownership.get("ch-2"));
-        assertFalse(faults.isFiring(Code.PC102, null));
-    }
-
-    @Test
-    void aFailedReadBackLeaseWriteOrReleaseEndsTheTick() {
-        own("ch-1");
-        local.undeployed("ch-1");
-        // A protected channel whose lease row is missing, so the tick writes it back.
-        store.modes.put("ch-2", Store.SINGLE_OWNER);
-
-        for (String failing : list("readBack", "insertLease", "release")) {
-            store.behavior = statement -> {
-                if (statement.equals(failing)) {
-                    throw new SQLException("socket", "08006");
-                }
-            };
-            clock.advanceMs(10_000);
-            idleSweeps(2);
-            int mark = store.calls.size();
-
-            keeper.tick();
-
-            List<String> calls = store.callsSince(mark);
-            assertEquals(failing, calls.get(calls.size() - 1), calls.toString());
-        }
-    }
-
-    @Test
-    void aChannelWhoseModeChangesIsQueuedForTheReconcilerOnce() {
-        store.protect("ch-1");
-        keeper.tick();
-        assertEquals(list("ch-1"), reconciler.queued);
-
-        keeper.tick();
-        assertEquals(list("ch-1"), reconciler.queued);
-
-        store.modes.put("ch-1", Store.UNMANAGED);
-        keeper.tick();
-        assertEquals(list("ch-1", "ch-1"), reconciler.queued);
-    }
-
-    @Test
-    void pc101ForALeaseLostAtRenewalNamesTheDatabaseTimeAndFiresOnce() {
-        own("ch-1");
-        store.holdBy("ch-1", "srv-b", 2);
-
-        nextTick();
-        nextTick();
-
-        assertEquals(1, sink.count(Code.PC101));
-        assertTrue(sink.fired.get(0).contains("around 2026-11-04T10:00:00Z;"), sink.fired.get(0));
-    }
-
-    @Test
-    void aReleaseThatSucceedsForgetsTheStartFailureSoALeaseTakenAgainIsKept() {
-        own("ch-1");
-        local.startFailed("ch-1", clock.getAsLong());
-        nextTick();
-        assertNull(ownership.get("ch-1"));
-
-        // The cool-down passes, so this node takes the channel again.
-        clock.advanceMs(90_000);
-        nextTick();
-        assertNotNull(ownership.get("ch-1"));
-
-        int mark = store.calls.size();
-        nextTick();
-
-        assertFalse(store.callsSince(mark).contains("release"));
-        assertNotNull(ownership.get("ch-1"));
-    }
-
-    @Test
-    void pc102StaysThroughATickThatRunsOutOfTimeBeforeTheNodeRow() {
-        own("ch-1");
-        clock.advanceMs(24_000);
-        timer.runDue();
-        assertTrue(faults.isFiring(Code.PC102, null));
-        // The read-back takes seven seconds, so the node row could still be running when the next tick is due.
-        store.behavior = statement -> {
-            if (statement.equals("readBack")) {
-                clock.advanceMs(7_000);
-            }
-        };
-        int mark = store.calls.size();
-
-        keeper.tick();
-
-        assertEquals(list("readBack"), store.callsSince(mark));
-        assertTrue(faults.isFiring(Code.PC102, null));
-    }
-
-    @Test
-    void aNodeThatDeclinesQueuesEveryChannelForTheReconcilerAtOnce() {
-        own("ch-1");
-        store.protect("ch-2");
-        nextTick();
-        reconciler.queued.clear();
-        store.peers.add(new Store.Peer("srv-b", "node-b", 2));
-
-        clock.advanceMs(10_000);
-        keeper.tick();
-
-        assertEquals(Keeper.State.DECLINED, keeper.state());
-        assertTrue(reconciler.queued.containsAll(list("ch-1", "ch-2")), reconciler.queued.toString());
-    }
-
-    @Test
-    void newCandidatesFillOnlyWhatIsLeftOfTheFairShare() {
-        store.peers.add(new Store.Peer("srv-b", "node-b", Node.PROTOCOL));
-        own("ch-1");
-        store.protect("ch-2", "ch-3", "ch-4");
-        deploy("ch-2", "ch-3", "ch-4");
-
-        nextTick();
-
-        // Four channels and two live nodes make a fair share of two, and this node already holds one.
-        assertEquals(Integer.valueOf(1), store.acquireShares.get(store.acquireShares.size() - 1));
-        assertEquals(2, ownership.size());
-    }
-
-    @Test
-    void anAcquisitionClearsItsPc103AndQueuesTheChannelForTheReconciler() {
-        store.protect("ch-1");
-        deploy("ch-1");
-        local.observed("ch-1", true, false);
-        keeper.tick();
-        for (int i = 0; i < 10; i++) {
-            nextTick();
-        }
-        assertTrue(faults.isFiring(Code.PC103, "ch-1"));
-
-        local.observed("ch-1", false, false);
-        reconciler.queued.clear();
-        nextTick();
-
-        assertNotNull(ownership.get("ch-1"));
-        assertFalse(faults.isFiring(Code.PC103, "ch-1"));
-        assertEquals(list("ch-1"), reconciler.queued);
-    }
-
-    @Test
     void shutdownForgetsTheOperatorStopOfEveryLeaseItReleases() {
         own("ch-1");
         local.setOperatorStop("ch-1", true);
@@ -1046,56 +1138,7 @@ class KeeperTest {
         assertEquals(list("markGone"), store.callsSince(mark));
     }
 
-    @Test
-    void theStatusCallReadsTheLatestReadBackItsAgeAndTheLastTick() {
-        store.protect("ch-1");
-        clock.advanceMs(10_000);
-        long tickedAt = clock.getAsLong();
-        keeper.tick();
-        clock.advanceMs(3_000);
-
-        assertTrue(keeper.readBack().rows.containsKey("ch-1"));
-        assertEquals(3_000, keeper.readBackAgeMs());
-        assertEquals(tickedAt, keeper.lastTickNanos());
-    }
-
-    @Test
-    void anOwnerIsNamedByTheServerNameThisNodeKnowsElseByItsServerId() {
-        own("ch-1", "ch-2", "ch-3");
-        long ownEpoch = ownership.get("ch-1").epoch;
-        // A peer seen on a tick of its own, so the next tick can name srv-b. Added after the acquisition,
-        // because a second live node would cut this node's fair share below three channels.
-        store.peers.add(new Store.Peer("srv-b", "node-b", Node.PROTOCOL));
-        keeper.tick();
-
-        // This node's own server ID under a newer epoch, a known peer, and a server ID no peer names.
-        store.holdBy("ch-1", "srv-a", ownEpoch + 1);
-        store.holdBy("ch-2", "srv-b", 2);
-        store.holdBy("ch-3", "srv-c", 2);
-        nextTick();
-
-        assertEquals(3, sink.count(Code.PC101));
-        assertFired("ch-1", "the database now names \"node-a\" as the owner (epoch " + (ownEpoch + 1) + ")");
-        assertFired("ch-2", "the database now names \"node-b\" as the owner (epoch 2)");
-        assertFired("ch-3", "the database now names \"srv-c\" as the owner (epoch 2)");
-    }
-
-    @Test
-    void aStatementThatCanFinishExactlyWhenTheNextTickIsDueIsStillSent() {
-        own("ch-1");
-        // The renewal takes six seconds, so each later statement's budget of four ends exactly at the next tick.
-        store.behavior = statement -> {
-            if (statement.equals("renew")) {
-                clock.advanceMs(6_000);
-            }
-        };
-        int mark = store.calls.size();
-        clock.advanceMs(10_000);
-
-        keeper.tick();
-
-        assertEquals(list("renew", "readBack", "upsertNode", "peers"), store.callsSince(mark));
-    }
+    // Unexpected failures
 
     @Test
     void aTickThatCannotScheduleItsAcquisitionWarns() {
@@ -1130,27 +1173,6 @@ class KeeperTest {
                 + "unexpected",
             "This node's lease renewal round failed unexpectedly. java.lang.IllegalStateException: unexpected"),
             sink.warnings);
-    }
-
-    @Test
-    void theReadBackAgeCountsFromTheLastReadBackThatSucceeded() {
-        keeper.tick();
-        clock.advanceMs(3_000);
-        assertEquals(3_000, keeper.readBackAgeMs());
-
-        store.behavior = statement -> {
-            if (statement.equals("readBack")) {
-                throw new SQLException("socket", "08006");
-            }
-        };
-        clock.advanceMs(7_000);
-        keeper.tick();
-        assertEquals(10_000, keeper.readBackAgeMs());
-
-        store.behavior = statement -> { };
-        clock.advanceMs(10_000);
-        keeper.tick();
-        assertEquals(0, keeper.readBackAgeMs());
     }
 
     private void own(String... channelIds) {
