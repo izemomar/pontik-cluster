@@ -308,6 +308,10 @@ final class ChannelReconciler {
             if (s != null && now - e.getValue() > lease && s.source != DeployedState.STOPPED) {
                 faults.raise(Code.PC104, e.getKey(), messages.pc104(ownerOf(k, rb, e.getKey()),
                     messages.stillStopping()));
+                // The stop may have landed while we raised, after its lane had nothing to clear yet.
+                if (!stopping.containsKey(e.getKey())) {
+                    faults.clear(Code.PC104, e.getKey());
+                }
             }
         }
         for (Map.Entry<String, Long> e : starting.entrySet()) {
@@ -404,6 +408,7 @@ final class ChannelReconciler {
         ownership.clearMustStop(id);
         startEnded(id);
         stopping.remove(id);
+        faults.clear(Code.PC104, id);
         if (channel == DeployedState.PAUSED) {
             try {
                 engine.startSource(id);

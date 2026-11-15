@@ -7,6 +7,9 @@ import java.util.Map;
 /** Names for the tests: one node, and channels named after their IDs unless told otherwise. */
 public final class FixedNames implements Names {
 
+    /** Runs on every channel name lookup, so a test can act at the moment a fault line is built. */
+    public volatile Runnable onChannelName = () -> { };
+
     private final String nodeId;
     private final String nodeName;
     private final Map<String, String> channels = new HashMap<>();
@@ -33,6 +36,7 @@ public final class FixedNames implements Names {
 
     @Override
     public String channelName(String channelId) {
+        onChannelName.run();
         return channels.getOrDefault(channelId, channelId);
     }
 }

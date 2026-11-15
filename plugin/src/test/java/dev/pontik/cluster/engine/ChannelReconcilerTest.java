@@ -770,6 +770,44 @@ class ChannelReconcilerTest {
     }
 
     @Test
+    void aStopThatLandsWhileTheSweepRaisesItsAlertLeavesNoAlert() {
+        own("ch-1");
+        engine.onStop = (e, id) -> e.set(id, DeployedState.PAUSING, DeployedState.STARTED);
+        rig.advanceMs(25_000);
+        drain();
+        rig.advanceMs(31_000);
+        rig.names.onChannelName = () -> {
+            rig.names.onChannelName = () -> { };
+            engine.set("ch-1", DeployedState.PAUSED, DeployedState.STOPPED);
+            reconciler.reconcile("ch-1");
+        };
+
+        reconciler.sweep();
+
+        assertFalse(rig.ownership.mustStop("ch-1"));
+        assertFalse(rig.faults.isFiring(Code.PC104, "ch-1"));
+    }
+
+    @Test
+    void aHandBackForgetsAPendingStopsAlert() {
+        rig.protect("ch-1");
+        rig.heldBy("ch-1", "srv-b");
+        deploy(Models.file("ch-1"), DeployedState.STARTED, DeployedState.STARTED);
+        engine.onStop = (e, id) -> {
+            throw new IllegalStateException("stuck");
+        };
+        lanes.queue("ch-1");
+        drain();
+        assertTrue(rig.faults.isFiring(Code.PC104, "ch-1"));
+
+        rig.mode("ch-1", "unmanaged");
+        drain();
+
+        assertFalse(rig.local.weStopped("ch-1"));
+        assertFalse(rig.faults.isFiring(Code.PC104, "ch-1"));
+    }
+
+    @Test
     void anUnsettledFreshReadKeepsAnOperatorsStopAndTheNodeThatMadeIt() {
         rig.protect("ch-1");
         rig.heldBy("ch-1", "srv-b");
