@@ -5,7 +5,8 @@ import com.mirth.connect.donkey.model.channel.DeployedState;
 
 /**
  * What a channel's lane must do, decided from what this node knows when the lane runs. The sweep
- * asks the same question, and queues a lane only when the answer is not {@code NONE}.
+ * asks the same question, and queues a lane when the answer is not {@code NONE}, or when a source
+ * someone else started still carries our mark.
  */
 final class Desired {
 

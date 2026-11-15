@@ -9,8 +9,9 @@ import java.util.function.LongSupplier;
 
 /**
  * The leases this process holds, and the channels whose source must stop. Only an acquisition
- * adds an entry. Every other change is one atomic step that first checks the epoch, so a late
- * renewal and a firing fence can never both win.
+ * adds an entry. Every other change checks the epoch on the entry it reads, then replaces or
+ * removes exactly that entry with the map's compare-and-set, so a late renewal and a firing fence
+ * can never both win.
  */
 public final class Ownership {
 
