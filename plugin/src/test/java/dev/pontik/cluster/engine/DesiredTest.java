@@ -29,8 +29,10 @@ class DesiredTest {
         "nobody holds, no marker: it runs|false|false|false|false|false|false|false|false|STARTED|STARTED|NONE",
         "a stop that landed clears the marker|false|false|false|true|true|false|false|true|PAUSED|STOPPED|CLEAR",
         "a stopped non-owner needs nothing|false|false|false|true|false|true|false|false|PAUSED|STOPPED|NONE",
-        "a pending stop on a channel between states waits for the sweep|false|false|false|true|true|false|false|true|PAUSING|STARTED|NONE",
-        "a pending stop on a source still stopping waits for the sweep|false|false|false|true|true|false|false|true|PAUSED|STOPPING|NONE",
+        "a pending stop on a channel between states waits for the sweep"
+            + "|false|false|false|true|true|false|false|true|PAUSING|STARTED|NONE",
+        "a pending stop on a source still stopping waits for the sweep"
+            + "|false|false|false|true|true|false|false|true|PAUSED|STOPPING|NONE",
     })
     void eachSituationOnThisNodeHasOneAction(String situation, boolean handBack, boolean held,
             boolean acquiredStopped, boolean weStopped, boolean mustStop, boolean anotherHolder, boolean starting,
