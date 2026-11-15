@@ -142,8 +142,8 @@ final class ChannelReconciler {
 
             Held held = ownership.get(id);
             long leftMs = held == null ? -1 : TimeUnit.NANOSECONDS.toMillis(held.validUntil - now);
-            Hook.Action action = Hook.decide(singleOwner, refusal != null, started, leftMs, timing.freshMs());
-            if (action != Hook.Action.PAUSE) {
+            // A lease confirmed within the last heartbeat keeps the source starting with the deploy.
+            if (!singleOwner || refusal != null || !started || leftMs >= timing.freshMs()) {
                 return;
             }
 

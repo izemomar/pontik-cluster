@@ -95,6 +95,20 @@ class ChannelReconcilerTest {
     }
 
     @Test
+    void aRedeployKeepsTheSourceOnlyWhileTheLeaseIsFresh() {
+        own("ch-1");
+        paused.clear();
+
+        rig.advanceMs(10_000);
+        deploy(Models.file("ch-1"), DeployedState.STARTED, DeployedState.STARTED);
+        assertTrue(paused.isEmpty());
+
+        rig.advanceMs(1);
+        deploy(Models.file("ch-1"), DeployedState.STARTED, DeployedState.STARTED);
+        assertEquals(1, paused.size());
+    }
+
+    @Test
     void aRefusedChannelRaisesItsCodeAndStartsAsConfigured() {
         rig.protect("ch-1");
 
