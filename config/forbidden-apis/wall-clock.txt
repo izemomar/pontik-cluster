@@ -45,3 +45,6 @@ java.util.Calendar#getInstance(java.util.TimeZone)
 java.util.Calendar#getInstance(java.util.Locale)
 java.util.Calendar#getInstance(java.util.TimeZone,java.util.Locale)
 java.sql.Timestamp::new
+
+# java.util.Timer schedules on the wall clock, and our own lease Timer shares its name.
+java.util.Timer
