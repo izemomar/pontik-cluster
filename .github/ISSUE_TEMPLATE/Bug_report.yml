@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: MPL-2.0
+
+# --------------------------------------------------------------------------
+# Bug Report
+# --------------------------------------------------------------------------
+#
+# GitHub shows this form when you open an issue. It asks for the versions
+# we need to reproduce a problem, as the contribution guide does.
+#
+
+name: Bug Report
+description: "Report something that's broken."
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Please read
+        [our contribution guide](https://github.com/izemomar/pontik-cluster/blob/main/CONTRIBUTING.md#bug-reports)
+        before you report a bug. If you found a security vulnerability, please don't report it here.
+        Please follow [our security policy](https://github.com/izemomar/pontik-cluster/security/policy) instead.
+  - type: input
+    attributes:
+      label: Pontik Cluster Version
+      description: Provide the Pontik Cluster version that you are using.
+      placeholder: 0.1.0-alpha
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Engine Version
+      description: Provide the Open Integration Engine™ version that your nodes run.
+      placeholder: 4.6.0
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: PostgreSQL Version
+      description: Provide the PostgreSQL version of your engine database.
+      placeholder: "17"
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Description
+      description: Provide a detailed description of the issue you are facing.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Steps To Reproduce
+      description: >-
+        Provide detailed steps to reproduce your issue, including how many nodes you run and the
+        channel's source connector.
+    validations:
+      required: true
