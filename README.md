@@ -29,7 +29,7 @@ others wait, or splitting your channels across nodes by hand.
   <source media="(prefers-reduced-motion: reduce)" srcset="art/pontik-cluster-polling-light.png 2x">
   <source media="(prefers-color-scheme: dark)" srcset="art/pontik-cluster-polling-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="art/pontik-cluster-polling-light.svg">
-  <img src="art/pontik-cluster-polling-light.png" alt="Two hand-drawn diagrams of the same three-node cluster. Without Pontik Cluster, every node polls the SFTP inbox and the EHR gets 1001.hl7 three times. With Pontik Cluster, a lease in the engine's PostgreSQL database names node-1 as the owner: only node-1 polls, while node-2 and node-3 wait on standby, Paused and ready to take over.">
+  <img src="art/pontik-cluster-polling-light.png" alt="Two hand-drawn diagrams of the same three-node cluster. Without Pontik Cluster, every node polls the SFTP inbox and the EHR can get 1001.hl7 three times. With Pontik Cluster, a lease in the engine's PostgreSQL database names node-1 as the owner: only node-1 polls, while node-2 and node-3 wait on standby, Paused and ready to take over.">
 </picture>
 
 ## How It Works
