@@ -19,7 +19,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 
 /**
- * The plugin's REST calls, under /api/extensions/pontik-cluster. A mode is set with query
+ * The plugin's REST calls, under /api/extensions/pontik-cluster. You set a mode with query
  * parameters and no body. Both reads answer from this node's memory and never touch the database.
  */
 @Path("/extensions/pontik-cluster")

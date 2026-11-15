@@ -7,7 +7,7 @@ import com.mirth.connect.model.DashboardStatus;
 import java.util.List;
 import java.util.function.Predicate;
 
-/** The engine calls the reconciler and the sweep make. The tests use one of their own. */
+/** The engine calls that the reconciler and the sweep make. The tests use one of their own. */
 interface Engine {
 
     /** Returns the status of every deployed channel, those being deployed or undeployed included. */

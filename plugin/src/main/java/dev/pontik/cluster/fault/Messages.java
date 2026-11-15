@@ -2,10 +2,9 @@
 package dev.pontik.cluster.fault;
 
 /**
- * The text of every fault: what happened, then what you do. The README's Fault Codes section
- * carries the same texts. The durations come from the lease timing, so the text always says what
- * this node really waits. In a message, a name an operator chose, such as a node or a Channel
- * Writer, appears in double quotes.
+ * The text of every fault: what happened, then what you do. The durations come from the lease
+ * timing, so the text always says what this node really waits. In a message, a name an operator
+ * chose, such as a node or a Channel Writer, appears in double quotes.
  */
 public final class Messages {
 

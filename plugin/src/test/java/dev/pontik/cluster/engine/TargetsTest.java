@@ -62,7 +62,7 @@ class TargetsTest {
     }
 
     @Test
-    void noTargetIsNoTarget() {
+    void aChannelWriterSetToNoneNamesNoTarget() {
         targets.add(Models.writingTo(Models.file("router"), "none"));
 
         assertNull(targets.writer("none"));

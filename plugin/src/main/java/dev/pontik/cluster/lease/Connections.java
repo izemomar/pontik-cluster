@@ -16,7 +16,7 @@ import org.postgresql.util.PSQLState;
  */
 public final class Connections {
 
-    public static final String APPLICATION_NAME = "pontik-cluster";
+    private static final String APPLICATION_NAME = "pontik-cluster";
 
     /** The query timeout of every statement on the second connection, in seconds. */
     static final int SECOND_QUERY_TIMEOUT_SECONDS = 5;

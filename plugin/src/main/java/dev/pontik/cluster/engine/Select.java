@@ -4,7 +4,7 @@ package dev.pontik.cluster.engine;
 import java.util.regex.Pattern;
 
 /**
- * Tells a Database Reader's select that only reads from one that may change data. A read we stop
+ * Tells a Database Reader's plain read apart from a select that may change data. A read we stop
  * partway is read again by the next owner, which is safe only when the read changed nothing.
  */
 final class Select {

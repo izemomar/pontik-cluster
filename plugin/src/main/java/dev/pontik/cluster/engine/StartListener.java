@@ -13,8 +13,9 @@ import java.util.function.Predicate;
 
 /**
  * Hears every source that starts, and queues the lane of a protected channel, so a start on a node
- * that does not own the channel is undone within moments. It runs on the engine's event thread and
- * only queues work. An event the engine never delivers is caught by the next sweep.
+ * that does not own the channel is undone within moments. It runs on its own consumer thread, which
+ * the engine starts for every event listener, and only queues work. An event the engine never
+ * delivers is caught by the next sweep.
  */
 final class StartListener extends EventListener {
 

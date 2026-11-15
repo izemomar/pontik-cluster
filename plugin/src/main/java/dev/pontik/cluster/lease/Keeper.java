@@ -282,7 +282,8 @@ public final class Keeper {
     }
 
     private boolean namesOther(Store.Row row, long epoch) {
-        return !node.id.equals(row.owner) || row.epoch == null || row.epoch != epoch;
+        // A row this node owns always carries an epoch.
+        return !node.id.equals(row.owner) || row.epoch != epoch;
     }
 
     // PC-103 counts, on this node's clock, how long a channel deployed and eligible here has had
@@ -455,7 +456,9 @@ public final class Keeper {
             return false;
         }
 
-        // One mismatch is this process's own first tick after a restart; two in a row are another process.
+        // Coordinator.start() writes this instance before the first tick, so a mismatch is another
+        // process's write. One alone can be the last renewal of a process this one replaced; two in a
+        // row are another live process under this server ID.
         if (previous != null && !previous.equals(node.instance)) {
             matches = 0;
             if (++mismatches >= 2) {
@@ -626,7 +629,10 @@ public final class Keeper {
         }
     }
 
-    /** Returns whether a node other than this one holds the channel's lease in the given read-back. */
+    /**
+     * Returns whether another process holds a valid lease on the channel in the given read-back:
+     * another node, or this server ID under an epoch this process does not hold.
+     */
     public boolean anotherHolder(Store.ReadBack rb, String channelId) {
         Store.Row row = rb.rows.get(channelId);
         if (row == null || !row.held(rb.dbNow)) {
