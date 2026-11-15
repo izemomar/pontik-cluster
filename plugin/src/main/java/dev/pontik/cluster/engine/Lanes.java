@@ -66,7 +66,8 @@ final class Lanes implements Reconciler {
                     current.accept(channelId);
                 }
             } catch (Throwable t) {
-                sink.warn("The reconciler failed on one channel; the next sweep tries again.", t);
+                sink.warn("This node could not start or stop the source of one channel; its next channel check "
+                    + "tries again.", t);
             }
             synchronized (lanes) {
                 if (lanes.get(channelId) != Lane.AGAIN) {

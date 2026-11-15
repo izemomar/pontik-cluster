@@ -43,7 +43,7 @@ class KeeperTest {
     private final Faults faults = new Faults(sink, names);
     private final Messages messages = new Messages(24, 90, 30);
     private final ManualTimer timer = new ManualTimer(clock);
-    private final Fence fence = new Fence(ownership, timer, clock, faults, messages, Timing.STANDARD, sink);
+    private final Fence fence = new Fence(ownership, timer, clock, faults, messages, Timing.STANDARD, names, sink);
     private final Keeper keeper = new Keeper(store, Timing.STANDARD, me, ownership, local, fence, faults, messages,
         names, reconciler, sink, clock, () -> 0L, Store.ReadBack.EMPTY);
 
@@ -1108,7 +1108,7 @@ class KeeperTest {
 
         executor.tasks.get(0).run();
 
-        assertEquals(list("The lease keeper could not schedule its acquisition. "
+        assertEquals(list("This node could not schedule its next attempt to take over channels. "
             + "java.lang.IllegalStateException: no jitter"), sink.warnings);
     }
 
@@ -1126,8 +1126,9 @@ class KeeperTest {
 
         assertTrue(ownership.isEmpty());
         assertEquals(list(
-            "The lease keeper's acquisition failed unexpectedly. java.lang.IllegalStateException: unexpected",
-            "The lease keeper's tick failed unexpectedly. java.lang.IllegalStateException: unexpected"),
+            "This node's attempt to take over channels failed unexpectedly. java.lang.IllegalStateException: "
+                + "unexpected",
+            "This node's lease renewal round failed unexpectedly. java.lang.IllegalStateException: unexpected"),
             sink.warnings);
     }
 

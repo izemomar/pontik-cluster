@@ -28,7 +28,7 @@ public final class Rig {
 
     public Rig(Reconciler reconciler) {
         ownership = new Ownership(reconciler, clock);
-        Fence fence = new Fence(ownership, timer, clock, faults, messages, Timing.STANDARD, sink);
+        Fence fence = new Fence(ownership, timer, clock, faults, messages, Timing.STANDARD, names, sink);
         keeper = new Keeper(store, Timing.STANDARD, me, ownership, local, fence, faults, messages, names, reconciler,
             sink, clock, () -> 0L, Store.ReadBack.EMPTY);
     }

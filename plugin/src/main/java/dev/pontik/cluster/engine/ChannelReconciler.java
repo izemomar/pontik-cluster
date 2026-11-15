@@ -152,7 +152,8 @@ final class ChannelReconciler {
                 record(id, new Refusal(Code.PC116, messages.pc116(false)), started, true);
             }
         } catch (Throwable t) {
-            sink.warn("The deploy hook failed for one channel, which starts as it is configured.", t);
+            sink.warn("This node could not check one channel as it deployed, so the channel starts as it is "
+                + "configured.", t);
         }
     }
 
@@ -246,7 +247,8 @@ final class ChannelReconciler {
         } catch (Throwable t) {
             if (!sweepFailing) {
                 sweepFailing = true;
-                sink.warn("The sweep could not read the channel states; until it can, no lease is released here.", t);
+                sink.warn("This node's channel check could not read the channel states; until it can, this node "
+                    + "releases no lease.", t);
             }
             return;
         }
@@ -278,8 +280,8 @@ final class ChannelReconciler {
             // We keep the targets we have; the next sweep tries again.
             if (!targetsFailing) {
                 targetsFailing = true;
-                sink.warn("The sweep could not refresh the Channel Writer targets; until it can, we keep the ones "
-                    + "we have.", t);
+                sink.warn("This node's channel check could not refresh the Channel Writer targets; until it can, "
+                    + "this node keeps the ones it has.", t);
             }
         }
 
@@ -325,9 +327,9 @@ final class ChannelReconciler {
             Seen s = fresh.get(id);
             if (s != null && now - e.getValue() > lease && s.source != DeployedState.STOPPED
                     && s.source != DeployedState.STARTED && startWarned.add(id)) {
-                sink.warn("The source of " + names.channelName(id) + " is still " + s.source + " after we started it, "
-                    + "so we keep its lease until it settles. Please check this node's access to the channel's "
-                    + "source.", null);
+                sink.warn("This node started \"" + names.channelName(id) + "\", but its source is still " + s.source
+                    + ", so this node keeps the lease until the source settles. Please check this node's access to "
+                    + "the channel's source.", null);
             }
         }
     }
@@ -418,8 +420,8 @@ final class ChannelReconciler {
             try {
                 engine.startSource(id);
             } catch (Exception e) {
-                sink.warn("Could not start " + names.channelName(id) + " after handing it back to the engine; "
-                    + "please start it by hand.", e);
+                sink.warn("This node could not start \"" + names.channelName(id) + "\" after handing it back to the "
+                    + "engine; please start it by hand.", e);
             }
         }
     }

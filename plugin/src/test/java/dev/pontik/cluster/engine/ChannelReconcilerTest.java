@@ -151,7 +151,8 @@ class ChannelReconcilerTest {
         deploy(Models.file("ch-1"), DeployedState.STARTED, DeployedState.STARTED);
 
         assertFalse(rig.local.weStopped("ch-1"));
-        assertEquals(1, rig.sink.warnings.stream().filter(w -> w.startsWith("The deploy hook failed")).count());
+        assertEquals(1, rig.sink.warnings.stream().filter(w -> w.startsWith(
+            "This node could not check one channel as it deployed")).count());
     }
 
     @Test
@@ -357,7 +358,8 @@ class ChannelReconcilerTest {
 
         assertFalse(rig.faults.isFiring(Code.PC118, "ch-1"));
         assertNotNull(rig.ownership.get("ch-1"));
-        assertEquals(1, rig.sink.warnings.stream().filter(w -> w.startsWith("The source of ch-1 is still Starting"))
+        assertEquals(1, rig.sink.warnings.stream().filter(w -> w.startsWith(
+            "This node started \"ch-1\", but its source is still Starting"))
             .count());
     }
 
@@ -460,7 +462,8 @@ class ChannelReconcilerTest {
         reconciler.sweep();
         reconciler.sweep();
 
-        assertEquals(1, rig.sink.warnings.stream().filter(w -> w.startsWith("The source of ch-1 is still Starting"))
+        assertEquals(1, rig.sink.warnings.stream().filter(w -> w.startsWith(
+            "This node started \"ch-1\", but its source is still Starting"))
             .count());
         assertFalse(rig.faults.isFiring(Code.PC118, "ch-1"));
         assertNotNull(rig.ownership.get("ch-1"));
@@ -726,7 +729,8 @@ class ChannelReconcilerTest {
         sweep();
         sweep();
 
-        assertEquals(1, rig.sink.warnings.stream().filter(w -> w.startsWith("The sweep could not")).count());
+        assertEquals(1, rig.sink.warnings.stream().filter(w -> w.startsWith(
+            "This node's channel check could not read")).count());
         assertTrue(pending.isEmpty());
     }
 
@@ -770,7 +774,8 @@ class ChannelReconcilerTest {
         sweep();
         sweep();
 
-        assertEquals(1, rig.sink.warnings.stream().filter(w -> w.startsWith("The sweep could not refresh")).count());
+        assertEquals(1, rig.sink.warnings.stream().filter(w -> w.startsWith(
+            "This node's channel check could not refresh")).count());
     }
 
     @Test

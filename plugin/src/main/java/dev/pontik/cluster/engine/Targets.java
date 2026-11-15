@@ -82,7 +82,7 @@ final class Targets {
             if (target.contains("${")) {
                 if (warned.add(model.getId())) {
                     sink.warn("A Channel Writer in \"" + model.getName() + "\" chooses its target channel while "
-                        + "it runs, so we cannot refuse to protect that target.", null);
+                        + "it runs, so this node cannot refuse to protect that target.", null);
                 }
                 continue;
             }

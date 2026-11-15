@@ -240,7 +240,8 @@ class CoordinatorTest {
 
             assertEquals("srv-a", Pg.text("SELECT owner_node_id FROM pcl_lease WHERE channel_id = 'ch-1'"));
             assertTrue(sink.warnings.contains(
-                "The lease keeper did not stop in time, so its leases expire on their own within one lease. null"),
+                "This node's lease renewals did not stop in time, so its leases run out on their own within one lease. "
+                    + "null"),
                 sink.warnings.toString());
             // stop() waits the statement budget plus one second for the keeper's thread, then gives up.
             assertTrue(tookMs >= 5_000, tookMs + " ms");

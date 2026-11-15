@@ -130,7 +130,7 @@ public final class Keeper {
         } catch (RejectedExecutionException e) {
             // The executor rejects only once it is shut down, and then the coordinator is stopping.
         } catch (Throwable t) {
-            sink.warn("The lease keeper could not schedule its acquisition.", t);
+            sink.warn("This node could not schedule its next attempt to take over channels.", t);
         }
     }
 
@@ -150,7 +150,7 @@ public final class Keeper {
                 }
             }
         } catch (Throwable t) {
-            sink.warn("The lease keeper's tick failed unexpectedly.", t);
+            sink.warn("This node's lease renewal round failed unexpectedly.", t);
         }
     }
 
@@ -561,7 +561,7 @@ public final class Keeper {
                 reconciler.queue(row.channelId);
             }
         } catch (Throwable t) {
-            sink.warn("The lease keeper's acquisition failed unexpectedly.", t);
+            sink.warn("This node's attempt to take over channels failed unexpectedly.", t);
         }
     }
 

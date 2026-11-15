@@ -83,7 +83,7 @@ public final class Coordinator implements Names {
             fenceThread = Executors.newSingleThreadScheduledExecutor(r -> daemon(r, "pontik-cluster-fence"));
             keeperThread = Executors.newSingleThreadScheduledExecutor(r -> daemon(r, "pontik-cluster-keeper"));
 
-            Fence fence = new Fence(ownership, Timer.on(fenceThread), nanos, faults, messages, timing, sink);
+            Fence fence = new Fence(ownership, Timer.on(fenceThread), nanos, faults, messages, timing, this, sink);
             Keeper started = new Keeper(new JdbcStore(keeperLink, node, 0), timing, node, ownership, local, fence,
                 faults, messages, this, reconciler, sink, nanos,
                 () -> ThreadLocalRandom.current().nextLong(timing.jitterMs + 1), initial);
@@ -137,8 +137,8 @@ public final class Coordinator implements Names {
                 if (ended) {
                     current.shutdown();
                 } else {
-                    sink.warn("The lease keeper did not stop in time, so its leases expire on their own within "
-                        + "one lease.", null);
+                    sink.warn("This node's lease renewals did not stop in time, so its leases run out on their own "
+                        + "within one lease.", null);
                 }
             }
         } catch (InterruptedException e) {

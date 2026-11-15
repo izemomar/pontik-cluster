@@ -4,6 +4,7 @@ package dev.pontik.cluster.lease;
 import dev.pontik.cluster.fault.Code;
 import dev.pontik.cluster.fault.Faults;
 import dev.pontik.cluster.fault.Messages;
+import dev.pontik.cluster.fault.Names;
 import dev.pontik.cluster.fault.Sink;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,17 +24,19 @@ public final class Fence {
     private final Faults faults;
     private final Messages messages;
     private final Timing timing;
+    private final Names names;
     private final Sink sink;
     private final Map<String, Timer.Task> deadlines = new ConcurrentHashMap<>();
 
     public Fence(Ownership ownership, Timer timer, LongSupplier nanos, Faults faults, Messages messages,
-            Timing timing, Sink sink) {
+            Timing timing, Names names, Sink sink) {
         this.ownership = ownership;
         this.timer = timer;
         this.nanos = nanos;
         this.faults = faults;
         this.messages = messages;
         this.timing = timing;
+        this.names = names;
         this.sink = sink;
     }
 
@@ -62,7 +65,8 @@ public final class Fence {
                 // Only the reconciler can throw here, once the lease has left the map and
                 // its marker is set. We count the lease as fenced and go on to the next one.
                 fenced++;
-                sink.warn("The reconciler did not take channel " + e.getKey() + " after its fence.", ex);
+                sink.warn("This node gave up the lease on \"" + names.channelName(e.getKey()) + "\" in time, but "
+                    + "could not queue the stop of its source; its next channel check tries again.", ex);
             }
         }
         if (fenced > 0) {
@@ -80,7 +84,7 @@ public final class Fence {
                 faults.clear(Code.PC110, null);
             }
         } catch (Throwable t) {
-            sink.warn("The keeper watchdog failed unexpectedly.", t);
+            sink.warn("This node's check that its lease renewals still run failed unexpectedly.", t);
         }
     }
 
@@ -88,7 +92,8 @@ public final class Fence {
         try {
             expireDue();
         } catch (Throwable t) {
-            sink.warn("The self-fence failed unexpectedly for channel " + channelId + " (epoch " + epoch + ").", t);
+            sink.warn("This node could not stop polling \"" + names.channelName(channelId) + "\" at its lease deadline "
+                + "(epoch " + epoch + "); it tries again at its next lease renewal round and channel check.", t);
         }
     }
 }

@@ -51,7 +51,8 @@ class KeeperDatabaseTest {
             FixedNames names = new FixedNames(id, node.name);
             Faults faults = new Faults(sink, names);
             Messages messages = new Messages(24, 90, 30);
-            Fence fence = new Fence(ownership, new ManualTimer(clock), clock, faults, messages, Timing.STANDARD, sink);
+            Fence fence = new Fence(ownership, new ManualTimer(clock), clock, faults, messages, Timing.STANDARD, names,
+                sink);
             keeper = new Keeper(new JdbcStore(link, node, 0), Timing.STANDARD, node, ownership, local, fence, faults,
                 messages, names, reconciler, sink, clock, () -> 0L, Store.ReadBack.EMPTY);
         }

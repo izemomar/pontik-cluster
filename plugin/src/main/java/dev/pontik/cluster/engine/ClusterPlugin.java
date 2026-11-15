@@ -129,8 +129,8 @@ public final class ClusterPlugin implements ServicePlugin, ChannelPlugin {
                 OieEngine engine = new OieEngine();
                 t.replace(engine.saved(), engine.enabled());
             } catch (Throwable e) {
-                sink.warn("Could not read the saved channels at startup; the first sweep finds the Channel Writer "
-                    + "targets.", e);
+                sink.warn("This node could not read the saved channels at startup; its first channel check finds the "
+                    + "Channel Writer targets.", e);
             }
 
             coordinatorStarted = true;
@@ -147,7 +147,7 @@ public final class ClusterPlugin implements ServicePlugin, ChannelPlugin {
                 try {
                     r.sweep();
                 } catch (Throwable e) {
-                    sink.warn("The sweep failed; the next one tries again.", e);
+                    sink.warn("This node's channel check failed; the next one tries again.", e);
                 }
             }, 0, TIMING.heartbeatMs, TimeUnit.MILLISECONDS);
 

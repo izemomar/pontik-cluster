@@ -27,9 +27,10 @@ class FenceTest {
     private final RecordingSink sink = new RecordingSink();
     private final RecordingReconciler reconciler = new RecordingReconciler();
     private final Ownership ownership = new Ownership(reconciler, clock);
-    private final Faults faults = new Faults(sink, new FixedNames("srv-1", "node-a"));
+    private final FixedNames names = new FixedNames("srv-1", "node-a").channel("ch-1", "Orders");
+    private final Faults faults = new Faults(sink, names);
     private final Fence fence =
-        new Fence(ownership, timer, clock, faults, new Messages(24, 90, 30), Timing.STANDARD, sink);
+        new Fence(ownership, timer, clock, faults, new Messages(24, 90, 30), Timing.STANDARD, names, sink);
 
     @Test
     void aPassedDeadlineDemotesAndRaisesPc102Once() {
@@ -204,12 +205,13 @@ class FenceTest {
     void aWatchdogThatFailsUnexpectedlyWarns() {
         Fence broken = new Fence(ownership, timer, () -> {
             throw new IllegalStateException("no clock");
-        }, faults, new Messages(24, 90, 30), Timing.STANDARD, sink);
+        }, faults, new Messages(24, 90, 30), Timing.STANDARD, names, sink);
 
         broken.checkKeeper(clock.getAsLong());
 
         assertEquals(Collections.singletonList(
-            "The keeper watchdog failed unexpectedly. java.lang.IllegalStateException: no clock"), sink.warnings);
+            "This node's check that its lease renewals still run failed unexpectedly. "
+                + "java.lang.IllegalStateException: no clock"), sink.warnings);
     }
 
     @Test
@@ -225,7 +227,8 @@ class FenceTest {
         assertNull(ownership.get("ch-1"));
         assertTrue(ownership.mustStop("ch-1"));
         assertEquals(Collections.singletonList(
-            "The self-fence failed unexpectedly for channel ch-1 (epoch 1). java.lang.Error: the reconciler is gone"),
+            "This node could not stop polling \"Orders\" at its lease deadline (epoch 1); it tries again at its next "
+                + "lease renewal round and channel check. java.lang.Error: the reconciler is gone"),
             sink.warnings);
     }
 
