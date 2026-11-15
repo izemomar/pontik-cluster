@@ -222,7 +222,8 @@ tasks.check {
 | interface and the views it returns go in a shared jar, which the engine
 | also loads where it registers the REST calls; everything else goes in
 | the server jar. plugin.xml takes its engine version from the Engine
-| section, so the two cannot drift apart.
+| section, so the two cannot drift apart. Both jars carry the license text
+| in META-INF, so it travels with them wherever they are copied.
 |
 */
 
@@ -237,6 +238,7 @@ val shared = listOf(
 tasks.jar {
     archiveFileName = "pontik-cluster-server.jar"
     exclude(shared)
+    metaInf { from(rootProject.file("LICENSE")) }
     manifest {
         attributes("Implementation-Title" to "Pontik Cluster", "Implementation-Version" to pluginVersion)
     }
@@ -247,6 +249,7 @@ val sharedJar = tasks.register<Jar>("sharedJar") {
     from(sourceSets.main.map { it.output }) {
         include(shared)
     }
+    metaInf { from(rootProject.file("LICENSE")) }
     manifest {
         attributes("Implementation-Title" to "Pontik Cluster", "Implementation-Version" to pluginVersion)
     }

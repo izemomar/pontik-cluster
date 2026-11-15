@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: MPL-2.0
 package dev.pontik.cluster;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
@@ -104,24 +108,52 @@ class PackagingTest {
         assertTrue(server.contains("dev.pontik.cluster.api.ClusterServlet"));
     }
 
+    @Test
+    void bothJarsCarryTheLicenseText() throws Exception {
+        byte[] license = Files.readAllBytes(Paths.get("../LICENSE"));
+
+        for (String jar : Arrays.asList(SERVER, SHARED)) {
+            assertArrayEquals(license, entry(jar, "META-INF/LICENSE"), jar);
+        }
+    }
+
     private static Set<String> classes(String jar) throws Exception {
         Set<String> names = new HashSet<>();
-        try (ZipFile zip = new ZipFile(ZIP);
-                InputStream in = zip.getInputStream(zip.getEntry("pontik-cluster/" + jar))) {
-            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-            byte[] buffer = new byte[8192];
-            for (int n; (n = in.read(buffer)) > 0; ) {
-                bytes.write(buffer, 0, n);
-            }
-            try (ZipInputStream entries = new ZipInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
-                for (ZipEntry e; (e = entries.getNextEntry()) != null; ) {
-                    if (e.getName().endsWith(".class")) {
-                        names.add(e.getName().replace('/', '.').replaceAll("\\.class$", ""));
-                    }
+        try (ZipInputStream entries = new ZipInputStream(new ByteArrayInputStream(jarBytes(jar)))) {
+            for (ZipEntry e; (e = entries.getNextEntry()) != null; ) {
+                if (e.getName().endsWith(".class")) {
+                    names.add(e.getName().replace('/', '.').replaceAll("\\.class$", ""));
                 }
             }
         }
         return names;
+    }
+
+    private static byte[] jarBytes(String jar) throws Exception {
+        try (ZipFile zip = new ZipFile(ZIP);
+                InputStream in = zip.getInputStream(zip.getEntry("pontik-cluster/" + jar))) {
+            return readAll(in);
+        }
+    }
+
+    private static byte[] entry(String jar, String name) throws Exception {
+        try (ZipInputStream entries = new ZipInputStream(new ByteArrayInputStream(jarBytes(jar)))) {
+            for (ZipEntry e; (e = entries.getNextEntry()) != null; ) {
+                if (e.getName().equals(name)) {
+                    return readAll(entries);
+                }
+            }
+        }
+        throw new AssertionError(jar + " has no " + name);
+    }
+
+    private static byte[] readAll(InputStream in) throws IOException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        for (int n; (n = in.read(buffer)) > 0; ) {
+            bytes.write(buffer, 0, n);
+        }
+        return bytes.toByteArray();
     }
 
     private static Document pluginXml() throws Exception {
