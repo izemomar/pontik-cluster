@@ -470,11 +470,14 @@ final class ChannelReconciler {
         String owner = ownerOf(k, k.readBack(), id);
         // A start still marked is over: we are about to stop the source it started.
         startEnded(id);
-        if (f.anotherHolder && !f.mustStop) {
-            undo(id, owner);
-        } else {
-            sink.info("Stopped " + names.channelName(id) + ": "
-                + (f.anotherHolder ? owner + " holds the lease" : "this node lost its lease") + ".");
+        // A retry of a stop already in flight is the same stop, so it logs and counts nothing more.
+        if (!f.stopping) {
+            if (f.anotherHolder && !f.mustStop) {
+                undo(id, owner);
+            } else {
+                sink.info("Stopped " + names.channelName(id) + ": "
+                    + (f.anotherHolder ? owner + " holds the lease" : "this node lost its lease") + ".");
+            }
         }
 
         local.setWeStopped(id, true);

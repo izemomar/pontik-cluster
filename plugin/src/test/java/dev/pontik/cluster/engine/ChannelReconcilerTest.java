@@ -523,6 +523,26 @@ class ChannelReconcilerTest {
         assertTrue(rig.local.weStopped("ch-1"));
     }
 
+    @Test
+    void aStopThatKeepsFailingRaisesPc104AndNeverPc105() {
+        rig.protect("ch-1");
+        rig.heldBy("ch-1", "srv-b");
+        deploy(Models.file("ch-1"), DeployedState.STARTED, DeployedState.STARTED);
+        engine.onStop = (e, id) -> {
+            throw new IllegalStateException("stuck");
+        };
+
+        for (int i = 0; i < 3; i++) {
+            lanes.queue("ch-1");
+            drain();
+        }
+
+        assertEquals(3, engine.count("stop ch-1"));
+        assertTrue(rig.faults.isFiring(Code.PC104, "ch-1"));
+        assertEquals(0, rig.sink.count(Code.PC105));
+        assertEquals(1, rig.sink.info.stream().filter(l -> l.startsWith("A start on node-a was undone")).count());
+    }
+
     // Sweeps and hand-backs
 
     @Test
