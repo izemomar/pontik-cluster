@@ -169,7 +169,7 @@ public final class Messages {
                 kind = "a JavaScript Reader";
                 break;
             case SCRIPT_MODE:
-                kind = "a Database Reader with Use JavaScript checked";
+                kind = "a Database Reader with Use JavaScript set to Yes";
                 break;
             default:
                 kind = "a select that writes";

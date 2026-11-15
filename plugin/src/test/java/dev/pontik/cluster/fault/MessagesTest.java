@@ -89,9 +89,9 @@ class MessagesTest {
             + "rereadable. If a read that this node stops partway leaves its data in place to be read again, set "
             + "rereadable=true; otherwise, please use unmanaged for this channel.",
             m.pc114(Messages.ChangingRead.JAVASCRIPT_READER));
-        assertEquals("Refused: the read may change data (a Database Reader with Use JavaScript checked), and the "
-            + "channel is not declared rereadable. If a read that this node stops partway leaves its data in place to be read "
-            + "again, set rereadable=true; otherwise, please use unmanaged for this channel.",
+        assertEquals("Refused: the read may change data (a Database Reader with Use JavaScript set to Yes), and "
+            + "the channel is not declared rereadable. If a read that this node stops partway leaves its data in place "
+            + "to be read again, set rereadable=true; otherwise, please use unmanaged for this channel.",
             m.pc114(Messages.ChangingRead.SCRIPT_MODE));
         assertEquals("Refused: the read may change data (a select that writes), and the channel is not declared "
             + "rereadable. If a read that this node stops partway leaves its data in place to be read again, set "
