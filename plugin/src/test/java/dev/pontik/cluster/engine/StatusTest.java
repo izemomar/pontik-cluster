@@ -10,7 +10,12 @@ class StatusTest {
 
     @Test
     void aChannelWithoutTheModeIsUnmanaged() {
-        Status s = Status.of(false, "a fault", false, true, null, false, null, false, null);
+        Status.Facts f = facts();
+        f.singleOwner = false;
+        f.unprotectedBy = "a fault";
+        f.running = true;
+
+        Status s = Status.of(f);
 
         assertEquals(Status.UNMANAGED, s.state);
         assertNull(s.reason);
@@ -18,7 +23,12 @@ class StatusTest {
 
     @Test
     void aFiringCodeMakesTheChannelUnprotectedWithItsMessage() {
-        Status s = Status.of(true, "Refused: ...", true, true, null, false, null, false, null);
+        Status.Facts f = facts();
+        f.unprotectedBy = "Refused: ...";
+        f.held = true;
+        f.running = true;
+
+        Status s = Status.of(f);
 
         assertEquals(Status.UNPROTECTED, s.state);
         assertEquals("Refused: ...", s.reason);
@@ -26,17 +36,30 @@ class StatusTest {
 
     @Test
     void aSourceRunningWithoutALeaseIsUnprotectedWithACalmReason() {
-        assertEquals(Status.TAKING_OVER, Status.of(true, null, false, true, null, false, null, false, null).reason);
-        assertEquals(Status.UNPROTECTED, Status.of(true, null, false, true, null, false, null, false, null).state);
-        assertEquals("A start on node-a was undone: node-b owns this channel. Start or stop it on node-b.",
-            Status.of(true, null, false, true,
-                "A start on node-a was undone: node-b owns this channel. Start or stop it on node-b.", false, null,
-                false, "node-b").reason);
+        Status.Facts f = facts();
+        f.running = true;
+
+        assertEquals(Status.UNPROTECTED, Status.of(f).state);
+        assertEquals(Status.TAKING_OVER, Status.of(f).reason);
+
+        f.undone = "A start on node-a was undone: node-b owns this channel. Start or stop it on node-b.";
+        f.holder = "node-b";
+        assertEquals(f.undone, Status.of(f).reason);
+    }
+
+    @Test
+    void theTakingOverReasonSaysTwoRenewalIntervals() {
+        assertEquals("taking over from another node, settles within about 20 s", Status.TAKING_OVER);
     }
 
     @Test
     void anOperatorsStopIsProtectedAndNamesTheNode() {
-        Status s = Status.of(true, null, true, false, null, true, "node-b", false, null);
+        Status.Facts f = facts();
+        f.held = true;
+        f.operatorStop = true;
+        f.stoppedOn = "node-b";
+
+        Status s = Status.of(f);
 
         assertEquals(Status.PROTECTED, s.state);
         assertEquals("stopped by an operator on node-b", s.reason);
@@ -44,7 +67,11 @@ class StatusTest {
 
     @Test
     void aNonOwnerStoppedHereSaysItCannotTakeOver() {
-        Status s = Status.of(true, null, false, false, null, false, null, true, "node-b");
+        Status.Facts f = facts();
+        f.channelStopped = true;
+        f.holder = "node-b";
+
+        Status s = Status.of(f);
 
         assertEquals(Status.PROTECTED, s.state);
         assertEquals(Status.STOPPED_HERE, s.reason);
@@ -52,9 +79,17 @@ class StatusTest {
 
     @Test
     void aWaitingNonOwnerNamesTheHolder() {
-        assertEquals("node-b holds the lease", Status.of(true, null, false, false, null, false, null, false,
-            "node-b").reason);
-        assertEquals("no node holds the lease yet", Status.of(true, null, false, false, null, false, null, false,
-            null).reason);
+        Status.Facts f = facts();
+        f.holder = "node-b";
+        assertEquals("node-b holds the lease", Status.of(f).reason);
+
+        f.holder = null;
+        assertEquals("no node holds the lease yet", Status.of(f).reason);
+    }
+
+    private static Status.Facts facts() {
+        Status.Facts f = new Status.Facts();
+        f.singleOwner = true;
+        return f;
     }
 }

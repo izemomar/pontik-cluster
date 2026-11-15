@@ -45,19 +45,20 @@ final class Report {
     /** Returns every channel deployed here at the last sweep and every channel with a mode, by ID. */
     List<ChannelView> channels(Keeper k, long nowNanos) {
         Store.ReadBack readBack = k.readBack();
+        List<Faults.Firing> firing = faults.firing();
         Map<String, ChannelReconciler.Seen> seen = reconciler.seen();
         TreeSet<String> ids = new TreeSet<>(seen.keySet());
         ids.addAll(readBack.rows.keySet());
 
         List<ChannelView> views = new ArrayList<>();
         for (String id : ids) {
-            views.add(channel(k, readBack, id, seen.get(id), nowNanos));
+            views.add(channel(k, readBack, firing, id, seen.get(id), nowNanos));
         }
         return views;
     }
 
-    private ChannelView channel(Keeper k, Store.ReadBack readBack, String id, ChannelReconciler.Seen seen,
-            long nowNanos) {
+    private ChannelView channel(Keeper k, Store.ReadBack readBack, List<Faults.Firing> firing, String id,
+            ChannelReconciler.Seen seen, long nowNanos) {
         Store.Row row = readBack.rows.get(id);
         boolean singleOwner = row != null && row.singleOwner();
         Held held = ownership.get(id);
@@ -81,7 +82,7 @@ final class Report {
         v.readBackAgeMs = k.readBackAgeMs();
 
         String unprotectedBy = null;
-        for (Faults.Firing f : faults.firing()) {
+        for (Faults.Firing f : firing) {
             if (f.channelId == null ? f.code.unprotected : f.channelId.equals(id)) {
                 v.codes.add(f.code.label());
                 if (unprotectedBy == null && f.code.unprotected) {
@@ -90,11 +91,18 @@ final class Report {
             }
         }
 
+        Status.Facts facts = new Status.Facts();
+        facts.singleOwner = singleOwner;
+        facts.unprotectedBy = unprotectedBy;
+        facts.held = holds;
+        facts.running = seen != null && seen.source != DeployedState.STOPPED;
+        facts.undone = reconciler.undone(id);
+        facts.operatorStop = local.operatorStop(id);
         String stoppedOn = reconciler.stoppedOn(id);
-        Status status = Status.of(singleOwner, unprotectedBy, holds,
-            seen != null && seen.source != DeployedState.STOPPED, reconciler.undone(id), local.operatorStop(id),
-            stoppedOn == null ? names.nodeName() : stoppedOn, seen != null && seen.channel == DeployedState.STOPPED,
-            k.anotherHolder(readBack, id) ? k.ownerName(row.owner) : null);
+        facts.stoppedOn = stoppedOn == null ? names.nodeName() : stoppedOn;
+        facts.channelStopped = seen != null && seen.channel == DeployedState.STOPPED;
+        facts.holder = k.anotherHolder(readBack, id) ? k.ownerName(row.owner) : null;
+        Status status = Status.of(facts);
         v.status = status.state;
         v.reason = status.reason;
 
