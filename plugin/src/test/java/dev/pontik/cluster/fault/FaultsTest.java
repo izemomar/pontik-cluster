@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class FaultsTest {
@@ -83,10 +85,14 @@ class FaultsTest {
     }
 
     @Test
-    void theLevelsAndScopesAreThoseOfTheTable() {
+    void levelsUnprotectedAndOneShotFlagsPerCode() {
+        Set<Code> unprotected = EnumSet.of(Code.PC104, Code.PC105, Code.PC106, Code.PC107, Code.PC112, Code.PC113,
+            Code.PC114, Code.PC115, Code.PC116, Code.PC119);
         for (Code code : Code.values()) {
             boolean warn = code == Code.PC103 || code == Code.PC105;
             assertEquals(warn ? Code.Level.WARN : Code.Level.ERROR, code.level, code.label());
+            assertEquals(unprotected.contains(code), code.unprotected, code.label());
+            assertEquals(code == Code.PC101, code.oneShot, code.label());
         }
         assertEquals("PC-118", Code.PC118.label());
         assertEquals(15, Code.values().length);
