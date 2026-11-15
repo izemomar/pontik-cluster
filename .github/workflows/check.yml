@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: MPL-2.0
+
+# --------------------------------------------------------------------------
+# Check
+# --------------------------------------------------------------------------
+#
+# We run ./gradlew check on every push to main and on every pull request,
+# on JDK 21 as the devcontainer does. The integration tests use the
+# runner's own Docker. Each action is pinned by commit, as we pin
+# everything else, and the job may only read the repository.
+#
+
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # We check the committed wrapper jar against Gradle's published
+      # checksums before anything runs it.
+      - uses: gradle/actions/wrapper-validation@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # The basic cache is MIT licensed, and it also keeps the engine
+      # tarball between runs.
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-provider: basic
+
+      - run: ./gradlew check
