@@ -2,14 +2,21 @@
 package dev.pontik.cluster;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -23,6 +30,11 @@ class SourceTreeTest {
 
     private static final Path MAIN = Paths.get("src/main/java/dev/pontik/cluster");
     private static final Pattern LITERAL = Pattern.compile("\"((?:[^\"\\\\\\n]|\\\\.)*)\"");
+    private static final Pattern LICENSED =
+        Pattern.compile(".*\\.(java|kts|properties|ya?ml|txt|json|xml)|Dockerfile");
+    // Build output, Gradle's own wrapper and the art; folders whose name starts with a dot are local
+    // tool folders, except the two we commit.
+    private static final Set<String> SKIPPED = new HashSet<>(Arrays.asList("build", "gradle", "art"));
 
     @Test
     void everyStatementLivesInSql() throws IOException {
@@ -40,6 +52,35 @@ class SourceTreeTest {
                 }
             }
         }
+    }
+
+    @Test
+    void everyFileWithCodeOrSettingsNamesItsLicense() throws IOException {
+        // Gradle does not see these files as test inputs, so after you edit only one of them, run this
+        // test with --rerun. CI always runs it fresh.
+        Path root = Paths.get("..").toAbsolutePath().normalize();
+        List<Path> missing = new ArrayList<>();
+
+        Files.walkFileTree(root, new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attributes) {
+                String name = dir.getFileName().toString();
+                boolean skipped = !dir.equals(root) && (SKIPPED.contains(name)
+                    || name.startsWith(".") && !name.equals(".github") && !name.equals(".devcontainer"));
+                return skipped ? FileVisitResult.SKIP_SUBTREE : FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) throws IOException {
+                if (LICENSED.matcher(file.getFileName().toString()).matches()
+                        && !read(file).contains("SPDX-License-Identifier: MPL-2.0")) {
+                    missing.add(root.relativize(file));
+                }
+                return FileVisitResult.CONTINUE;
+            }
+        });
+
+        assertTrue(missing.isEmpty(), "These files do not name their license: " + missing);
     }
 
     private static List<String> literals(String source) {

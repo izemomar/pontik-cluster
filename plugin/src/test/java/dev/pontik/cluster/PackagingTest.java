@@ -6,11 +6,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.mirth.connect.model.MetaData;
+import com.mirth.connect.model.PluginMetaData;
+import com.mirth.connect.model.converters.ObjectXMLSerializer;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -72,6 +76,20 @@ class PackagingTest {
         expected.put(SERVER, "SERVER");
         expected.put(SHARED, "SHARED");
         assertEquals(expected, libraries);
+    }
+
+    @Test
+    void theEngineReadsThePluginFile() throws Exception {
+        // The engine reads plugin.xml with its own serializer when it installs the zip, so a header or
+        // a token it cannot read would otherwise show up only on an engine.
+        ObjectXMLSerializer serializer = ObjectXMLSerializer.getInstance();
+        serializer.init(engineVersion());
+
+        MetaData plugin = serializer.deserialize(pluginXmlText(), MetaData.class);
+
+        assertEquals(PluginMetaData.class, plugin.getClass());
+        assertEquals("pontik-cluster", plugin.getPath());
+        assertEquals(engineVersion(), plugin.getMirthVersion());
     }
 
     @Test
@@ -162,6 +180,13 @@ class PackagingTest {
         try (ZipFile zip = new ZipFile(ZIP);
                 InputStream in = zip.getInputStream(zip.getEntry("pontik-cluster/plugin.xml"))) {
             return factory.newDocumentBuilder().parse(in);
+        }
+    }
+
+    private static String pluginXmlText() throws Exception {
+        try (ZipFile zip = new ZipFile(ZIP);
+                InputStream in = zip.getInputStream(zip.getEntry("pontik-cluster/plugin.xml"))) {
+            return new String(readAll(in), StandardCharsets.UTF_8);
         }
     }
 
