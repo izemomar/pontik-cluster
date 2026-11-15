@@ -4,13 +4,14 @@
 
 ## Introduction
 
-Pontik Cluster is a plugin for Eclipse Open Integration Engine™ that makes sure at most
-one node of your cluster starts a poll for each channel you protect. It protects
-channels whose source connector polls: a File Reader, a Database Reader or a
-JavaScript Reader. When the node polling a channel stops, another node takes the
-channel over automatically.
+Pontik Cluster is a plugin for Eclipse Open Integration Engine™, the open-source
+healthcare integration engine. It makes sure at most one node of your cluster starts a
+poll for each channel you protect, with automatic failover. It can protect a channel
+whose source connector polls - a File Reader, a Database Reader or a JavaScript
+Reader - and when a channel's settings rule that out, it tells you why. When the node
+polling a channel stops, another node takes the channel over.
 
-Out of the box, Open Integration Engine - like Mirth® Connect, which it was forked
+Out of the box, Open Integration Engine™ - like Mirth® Connect, which it was forked
 from - does not coordinate the nodes of a cluster. When you run it active-active, with
 every node sharing one database and running the same channels at the same time, every
 node polls those channels on its own, so two nodes can read the same file or row.
@@ -75,23 +76,26 @@ You opt in one channel at a time by choosing its mode:
 | `single-owner` | At most one node starts a poll for the channel's source connector. |
 
 Only a channel whose source connector polls can be protected. A channel that listens
-keeps running on every node behind your load balancer, as it does today, and we refuse
-to protect it: it is reported as `unprotected`, with fault code PC-112.
+keeps running on every node behind your load balancer, as it does today. If you try to
+set its mode to `single-owner`, we refuse the change, and the channel stays `unmanaged`.
+If you later change a `single-owner` channel's source to a listener and redeploy it,
+each node runs the channel as it would without the plugin and reports it as
+`unprotected`, with fault code PC-112.
 
 Installing the plugin changes no channel's behavior until you set its mode, and
 removing it from every node returns every channel to the engine's own behavior. The
 plugin keeps its state in three tables of its own in the engine's database, `pcl_node`,
 `pcl_lease` and `pcl_channel_config`, which stay there until you drop them. Pontik
-Cluster only ever prevents a read. It never deletes, moves, acknowledges, or reorders a
+Cluster only ever prevents a read. It never deletes, moves, acknowledges or reorders a
 message, and it never writes to any of the engine's own tables.
 
 You always know where a `single-owner` channel stands. Each node reports it as either
-`protected` or `unprotected`, and if anything degrades, the channel is reported as
-`unprotected` along with a fault code that tells you why.
+`protected` or `unprotected`, with the reason, and raises a fault code when you must
+act.
 
 ## Requirements
 
-Pontik Cluster runs on two or more Open Integration Engine 4.6.0 servers - we call each
+Pontik Cluster runs on two or more Open Integration Engine™ 4.6.0 servers - we call each
 one a node - that share one PostgreSQL engine database. It adds no server and no
 network path between your nodes: each node opens two more connections to the database
 it already uses.
@@ -111,6 +115,11 @@ you need each message processed exactly once, you should make sure your destinat
 are idempotent, which means that receiving the same message twice has the same effect
 as receiving it once.
 
+Channels that listen depend on each message reaching one node. A JMS Listener that
+subscribes to a topic can receive every message on every node, and we refuse to protect
+it, because it does not poll. If you can, you should have it read from a queue instead,
+since a queue hands each message to one node.
+
 Pontik Cluster is provided as-is, without warranty of any kind, and no fitness for any
 purpose, clinical or otherwise, is asserted. It is not a medical device, is not
 certified as one, and does not replace the safety controls of the systems it runs
@@ -119,10 +128,10 @@ alongside. Please validate it in your own environment before it carries live tra
 ## Trademarks
 
 Eclipse, Open Integration Engine and OIE are trademarks of Eclipse Foundation AISBL.
-Mirth and Mirth Connect are trademarks of NextGen Healthcare. BridgeLink and any other
-names belong to their respective owners. They are used here only to identify the
-software this plugin works with. Pontik Cluster is not affiliated with, endorsed by,
-or sponsored by any of them.
+Mirth and Mirth Connect are trademarks of NXGN Management, LLC. We use these names
+only to identify the engine this plugin runs on and the software that engine was
+forked from. Other names belong to their respective owners. Pontik Cluster is not
+affiliated with, endorsed by, or sponsored by any of them.
 
 ## Contributing
 
