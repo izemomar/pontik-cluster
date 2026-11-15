@@ -26,7 +26,8 @@ version = "0.1.0-alpha"
 | your Gradle home, checks it against the SHA-256 the release publishes,
 | and unpacks the engine's server libraries and the four connector jars we
 | compile against under build/. A clean build reuses the download, and we
-| never commit anything from the tarball.
+| never commit anything from the tarball. To move to another release, you
+| change engineVersion and the SHA-256 beside it, and plugin.xml follows.
 |
 */
 
@@ -81,10 +82,13 @@ abstract class DownloadEngine : DefaultTask() {
     }
 }
 
+val engineVersion = "4.6.0"
+val engineTarball = "oie_unix_${engineVersion.replace('.', '_')}.tar.gz"
+
 val downloadEngine = tasks.register<DownloadEngine>("downloadEngine") {
-    url = "https://github.com/OpenIntegrationEngine/engine/releases/download/v4.6.0/oie_unix_4_6_0.tar.gz"
+    url = "https://github.com/OpenIntegrationEngine/engine/releases/download/v$engineVersion/$engineTarball"
     sha256 = "7c82e79027e671277e1d78d0f7bbb1c53ddf1be476f1e80c2ddbfcf7855900ea"
-    tarball = File(gradle.gradleUserHomeDir, "caches/pontik-cluster/oie_unix_4_6_0.tar.gz")
+    tarball = File(gradle.gradleUserHomeDir, "caches/pontik-cluster/$engineTarball")
 }
 
 val unpackEngine = tasks.register<Sync>("unpackEngine") {
@@ -217,7 +221,8 @@ tasks.check {
 | and installs nothing, so the packaging test checks the layout. The REST
 | interface and the views it returns go in a shared jar, which the engine
 | also loads where it registers the REST calls; everything else goes in
-| the server jar.
+| the server jar. plugin.xml takes its engine version from the Engine
+| section, so the two cannot drift apart.
 |
 */
 
@@ -249,11 +254,16 @@ val sharedJar = tasks.register<Jar>("sharedJar") {
 
 val pluginZip = tasks.register<Zip>("pluginZip") {
     archiveFileName = "pontik-cluster-$pluginVersion.zip"
+    // Gradle does not track a filter's tokens, so without this an engine bump could leave the zip up to date.
+    inputs.property("mirthVersion", engineVersion)
     into("pontik-cluster") {
         from(tasks.jar)
         from(sharedJar)
         from("src/dist/plugin.xml") {
-            filter(ReplaceTokens::class, "tokens" to mapOf("version" to pluginVersion))
+            filter(
+                ReplaceTokens::class,
+                "tokens" to mapOf("version" to pluginVersion, "mirthVersion" to engineVersion),
+            )
         }
     }
 }

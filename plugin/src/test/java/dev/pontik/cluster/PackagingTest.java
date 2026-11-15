@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
@@ -15,6 +16,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -53,7 +55,7 @@ class PackagingTest {
         Element root = pluginXml().getDocumentElement();
 
         assertEquals("pontik-cluster", root.getAttribute("path"));
-        assertEquals("4.6.0", text(root, "mirthVersion"));
+        assertEquals(engineVersion(), text(root, "mirthVersion"));
         assertFalse(text(root, "pluginVersion").contains("@"));
 
         Map<String, String> libraries = new HashMap<>();
@@ -133,5 +135,22 @@ class PackagingTest {
 
     private static String text(Element root, String tag) {
         return root.getElementsByTagName(tag).item(0).getTextContent().trim();
+    }
+
+    // The engine installs a plugin only when plugin.xml names the mirth.version its own jar reports.
+    private static String engineVersion() throws Exception {
+        List<String> versions = new ArrayList<>();
+        Enumeration<URL> files = PackagingTest.class.getClassLoader().getResources("version.properties");
+        while (files.hasMoreElements()) {
+            Properties properties = new Properties();
+            try (InputStream in = files.nextElement().openStream()) {
+                properties.load(in);
+            }
+            if (properties.getProperty("mirth.version") != null) {
+                versions.add(properties.getProperty("mirth.version"));
+            }
+        }
+        assertEquals(1, versions.size(), "mirth.version found in " + versions.size() + " files");
+        return versions.get(0);
     }
 }
