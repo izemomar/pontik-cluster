@@ -3,13 +3,20 @@ package dev.pontik.cluster.engine;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.mirth.connect.model.ExtensionPermission;
 import dev.pontik.cluster.api.NodeView;
+import dev.pontik.cluster.fault.RecordingSink;
+import dev.pontik.cluster.lease.ConfigWriter;
+import dev.pontik.cluster.lease.Connections;
+import dev.pontik.cluster.lease.DbSettings;
+import dev.pontik.cluster.lease.Link;
 import java.util.Arrays;
+import java.util.Collections;
 import org.junit.jupiter.api.Test;
 
 class ClusterPluginTest {
@@ -64,5 +71,19 @@ class ClusterPluginTest {
         String[] copy = names.clone();
         Arrays.sort(copy);
         return copy;
+    }
+
+    @Test
+    void aModeThatCannotBeForgottenIsLoggedWithItsSqlStateAndNoDriverText() throws Exception {
+        RecordingSink sink = new RecordingSink();
+        ConfigWriter writer = new ConfigWriter(new Link(Connections.second(
+            new DbSettings("postgres", "jdbc:postgresql://127.0.0.1:1/engine", "pcl_user", "pw"))));
+
+        ClusterPlugin.forget(writer, Models.file("ch-1"), sink);
+
+        assertEquals(Collections.singletonList("This node could not forget the mode of the deleted channel \"name of "
+            + "ch-1\" (ch-1): the database answered SQLState 08001. GET /channels keeps listing it, and a channel "
+            + "created again under this ID starts in that mode. null"), sink.warnings);
+        assertFalse(sink.warnings.get(0).contains("127.0.0.1"));
     }
 }

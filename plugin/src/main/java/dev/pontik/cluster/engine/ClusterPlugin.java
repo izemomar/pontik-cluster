@@ -15,6 +15,7 @@ import dev.pontik.cluster.api.ChannelView;
 import dev.pontik.cluster.api.ClusterServletInterface;
 import dev.pontik.cluster.api.NodeView;
 import dev.pontik.cluster.fault.Code;
+import dev.pontik.cluster.fault.Sink;
 import dev.pontik.cluster.lease.ConfigWriter;
 import dev.pontik.cluster.lease.Coordinator;
 import dev.pontik.cluster.lease.DbSettings;
@@ -22,6 +23,7 @@ import dev.pontik.cluster.lease.Keeper;
 import dev.pontik.cluster.lease.Node;
 import dev.pontik.cluster.lease.Store;
 import dev.pontik.cluster.lease.Timing;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
@@ -226,15 +228,24 @@ public final class ClusterPlugin implements ServicePlugin, ChannelPlugin {
     public void remove(Channel channel, ServerEventContext context) {
         Coordinator c = coordinator;
         ConfigWriter writer = c == null ? null : c.writer();
-        if (writer == null) {
-            return;
+        if (writer != null) {
+            forget(writer, channel, sink);
         }
+    }
+
+    // A driver's message can name the database host or user, so its line carries the SQLState instead.
+    static void forget(ConfigWriter writer, Channel channel, Sink sink) {
+        String what = "This node could not forget the mode of the deleted channel \"" + channel.getName() + "\" ("
+            + channel.getId() + ")";
+        String then = " GET /channels keeps listing it, and a channel created again under this ID starts in that "
+            + "mode.";
         try {
             writer.remove(channel.getId());
+        } catch (SQLException e) {
+            sink.warn(what + ": the database answered SQLState "
+                + (e.getSQLState() == null ? "unknown" : e.getSQLState()) + "." + then, null);
         } catch (Throwable t) {
-            sink.warn("Could not forget the mode of the deleted channel " + channel.getName() + " ("
-                + channel.getId() + "). GET /channels keeps listing it, and a channel created again under this ID "
-                + "starts in that mode.", t);
+            sink.warn(what + "." + then, t);
         }
     }
 

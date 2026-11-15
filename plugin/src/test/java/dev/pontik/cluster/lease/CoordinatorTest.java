@@ -125,6 +125,25 @@ class CoordinatorTest {
     }
 
     @Test
+    void anUnexpectedFailureAtStartIsLoggedWithItsCause() {
+        // The keeper reads the clock as it is built, so a clock that throws stops the start there.
+        Coordinator c = new Coordinator(Pg.settings(), node, Timing.STANDARD, sink, reconciler, () -> {
+            throw new IllegalStateException("no clock");
+        });
+
+        try {
+            c.start();
+
+            assertEquals(Coordinator.State.OFF, c.state());
+            assertEquals(1, sink.count(Code.PC107));
+            assertEquals(Collections.singletonList("The plugin could not start on this node because of an "
+                + "unexpected IllegalStateException. java.lang.IllegalStateException: no clock"), sink.warnings);
+        } finally {
+            c.stop();
+        }
+    }
+
+    @Test
     void startRegistersTheNodeAndLoadsTheConfigBeforeItReturnsAndItsLineCarriesNoSecrets() throws SQLException {
         Pg.execute("DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'pcl_owner_user') THEN "
             + "CREATE ROLE pcl_owner_user LOGIN PASSWORD 'pcl-secret-pw'; END IF; END $$",

@@ -23,7 +23,9 @@ public interface Sink {
 
     /**
      * Logs a failure that no fault code covers, such as a bug, as one WARN line with the cause. The
-     * line is a fixed phrase or an SQLState, never exception text; the cause carries the exception.
+     * line is a fixed phrase or an SQLState, never exception text. The cause carries the exception,
+     * except a driver's {@code SQLException}: its message can name the database host or user, so its
+     * line carries the SQLState and the cause is null.
      */
     void warn(String line, Throwable cause);
 }
