@@ -49,15 +49,8 @@ public final class Ownership {
      * it did. The keeper calls this for each row a renewal returns.
      */
     boolean confirm(String channelId, long epoch, long validUntil) {
-        boolean[] confirmed = {false};
-        held.computeIfPresent(channelId, (id, e) -> {
-            if (e.epoch != epoch) {
-                return e;
-            }
-            confirmed[0] = true;
-            return new Held(epoch, validUntil);
-        });
-        return confirmed[0];
+        Held e = held.get(channelId);
+        return e != null && e.epoch == epoch && held.replace(channelId, e, new Held(epoch, validUntil));
     }
 
     /**
@@ -65,18 +58,13 @@ public final class Ownership {
      * when a deadline fires, and every keeper tick reaches it too.
      */
     boolean expire(String channelId, long epoch) {
-        boolean[] removed = {false};
-        held.computeIfPresent(channelId, (id, e) -> {
-            if (e.epoch == epoch && nanos.getAsLong() - e.validUntil >= 0) {
-                removed[0] = true;
-                return null;
-            }
-            return e;
-        });
-        if (removed[0]) {
+        Held e = held.get(channelId);
+        boolean removed = e != null && e.epoch == epoch && nanos.getAsLong() - e.validUntil >= 0
+            && held.remove(channelId, e);
+        if (removed) {
             stop(channelId);
         }
-        return removed[0];
+        return removed;
     }
 
     /**
@@ -84,7 +72,7 @@ public final class Ownership {
      * this when the database no longer confirms the epoch.
      */
     boolean demote(String channelId, long epoch) {
-        boolean removed = remove(channelId, epoch);
+        boolean removed = release(channelId, epoch);
         if (removed) {
             stop(channelId);
         }
@@ -97,7 +85,8 @@ public final class Ownership {
      * it does without the plugin.
      */
     boolean release(String channelId, long epoch) {
-        return remove(channelId, epoch);
+        Held e = held.get(channelId);
+        return e != null && e.epoch == epoch && held.remove(channelId, e);
     }
 
     public boolean mustStop(String channelId) {
@@ -110,18 +99,6 @@ public final class Ownership {
      */
     public void clearMustStop(String channelId) {
         mustStop.remove(channelId);
-    }
-
-    private boolean remove(String channelId, long epoch) {
-        boolean[] removed = {false};
-        held.computeIfPresent(channelId, (id, e) -> {
-            if (e.epoch != epoch) {
-                return e;
-            }
-            removed[0] = true;
-            return null;
-        });
-        return removed[0];
     }
 
     // The entry has already left the map, so the hook, the reconciler and the status call see the
