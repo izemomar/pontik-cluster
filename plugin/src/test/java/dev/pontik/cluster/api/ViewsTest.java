@@ -13,10 +13,7 @@ class ViewsTest {
     @Test
     void theViewsSerializeUnderTheirAliasesAndNameNoClass() {
         XStream xstream = new XStream();
-        xstream.processAnnotations(new Class<?>[] {
-            ChannelView.class, ChannelView.ThisNode.class, NodeView.class, NodeView.Timing.class,
-            NodeView.Peer.class, NodeView.Lease.class, NodeView.Fault.class
-        });
+        xstream.processAnnotations(new Class<?>[] { ChannelView.class, NodeView.class });
         ChannelView channel = new ChannelView();
         channel.channelId = "ch-1";
         channel.codes.add("PC-106");

@@ -8,13 +8,16 @@ import java.util.List;
 /**
  * This node as the plugin sees it: whether the plugin runs here, its timing, the peers it counts as
  * live, the leases it holds and every fault that is firing. It is read from memory, so it answers
- * even while the database is down.
+ * even while the database is down. A field without a value is left out of both the XML and the JSON.
  */
 @XStreamAlias("pontikNode")
 public class NodeView {
 
-    /** The fixed lease timing, in milliseconds, and the renewals a lease survives. */
-    @XStreamAlias("pontikTiming")
+    /**
+     * The fixed lease timing, in milliseconds, and how many renewals this node sends between a
+     * confirmed renewal and the moment it stops polling. A lease survives one fewer failed renewals
+     * in a row.
+     */
     public static class Timing {
 
         public long leaseMs;
@@ -56,8 +59,10 @@ public class NodeView {
     public String instanceId;
     public String state;
     public String code;
-    public boolean gateAvailable;
-    public Timing timing = new Timing();
+    /** Whether this node can keep a deploying channel Paused; null where the plugin never started. */
+    public Boolean gateAvailable;
+    /** The lease timing; null where the plugin never started. */
+    public Timing timing;
     public Long lastTickAgeMs;
     public Long lastSweepAgeMs;
     public Boolean engineBusy;

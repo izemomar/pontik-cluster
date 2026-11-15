@@ -3,6 +3,7 @@ package dev.pontik.cluster.engine;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -48,6 +49,15 @@ class ClusterPluginTest {
         assertDoesNotThrow(plugin::stop);
 
         assertEquals("OFF", plugin.local().state);
+    }
+
+    @Test
+    void aPluginThatNeverStartedReportsNoTimingAndNoGate() {
+        NodeView v = plugin.local();
+
+        assertEquals("OFF", v.state);
+        assertNull(v.timing);
+        assertNull(v.gateAvailable);
     }
 
     private static String[] sorted(String[] names) {

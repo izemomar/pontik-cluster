@@ -113,6 +113,7 @@ final class Report {
         v.instanceId = node.instance;
         v.state = state;
         v.gateAvailable = reconciler.gateAvailable();
+        v.timing = new NodeView.Timing();
         v.timing.leaseMs = timing.leaseMs;
         v.timing.heartbeatMs = timing.heartbeatMs;
         v.timing.marginMs = timing.marginMs;

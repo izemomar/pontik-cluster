@@ -59,8 +59,11 @@ public final class ClusterPlugin implements ServicePlugin, ChannelPlugin {
         return ClusterServletInterface.PLUGIN_POINT;
     }
 
+    /** Registers the names of the status views. The engine calls this before it starts its web server. */
     @Override
     public void init(Properties properties) {
+        // XStream walks each view's field types, so the two top views register their parts too.
+        ObjectXMLSerializer.getInstance().processAnnotations(new Class<?>[] { ChannelView.class, NodeView.class });
     }
 
     @Override
@@ -127,10 +130,6 @@ public final class ClusterPlugin implements ServicePlugin, ChannelPlugin {
                 sink.warn("Could not read the saved channels at startup; the first sweep finds the Channel Writer "
                     + "targets.", e);
             }
-            ObjectXMLSerializer.getInstance().processAnnotations(new Class<?>[] {
-                ChannelView.class, ChannelView.ThisNode.class, NodeView.class, NodeView.Timing.class,
-                NodeView.Peer.class, NodeView.Lease.class, NodeView.Fault.class
-            });
 
             coordinatorStarted = true;
             c.start();

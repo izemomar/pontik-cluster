@@ -8,13 +8,12 @@ import java.util.List;
 /**
  * One channel as this node sees it: its mode, whether it is protected here and why, its lease as
  * the last read-back found it, and what this node is doing with its source. Times are ISO-8601 in
- * UTC. A field without a value is left out of the XML, and is null in the JSON.
+ * UTC. A field without a value is left out of both the XML and the JSON.
  */
 @XStreamAlias("pontikChannel")
 public class ChannelView {
 
     /** What this node is doing with the channel's source. */
-    @XStreamAlias("pontikThisNode")
     public static class ThisNode {
 
         public String role;
