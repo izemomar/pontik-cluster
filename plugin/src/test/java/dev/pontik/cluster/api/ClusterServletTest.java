@@ -2,8 +2,10 @@
 package dev.pontik.cluster.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.mirth.connect.client.core.api.Param;
 import com.mirth.connect.server.api.CheckAuthorizedChannelId;
 import java.util.Arrays;
 import java.util.stream.Collectors;
@@ -15,6 +17,17 @@ class ClusterServletTest {
     void settingAModeChecksTheCallersAccessToThatChannel() throws Exception {
         assertTrue(ClusterServlet.class.getMethod("setMode", String.class, String.class, String.class)
             .isAnnotationPresent(CheckAuthorizedChannelId.class));
+    }
+
+    @Test
+    void theChannelCheckFindsTheChannelIdByTheNameOfTheFirstParameter() throws Exception {
+        String name = ClusterServlet.class.getMethod("setMode", String.class, String.class, String.class)
+            .getAnnotation(CheckAuthorizedChannelId.class).paramName();
+        Param param = (Param) ClusterServletInterface.class
+            .getMethod("setMode", String.class, String.class, String.class).getParameterAnnotations()[0][0];
+
+        assertEquals(name, param.value());
+        assertFalse(param.excludeFromAudit());
     }
 
     @Test
