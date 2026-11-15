@@ -77,7 +77,6 @@ final class ChannelReconciler {
     private final Map<String, Long> starting = new ConcurrentHashMap<>();
     private final Map<String, Long> stopping = new ConcurrentHashMap<>();
     private final Set<String> startWarned = ConcurrentHashMap.newKeySet();
-    private final Map<String, Long> gatedAt = new ConcurrentHashMap<>();
     private final Map<String, Deque<Long>> undoneAt = new ConcurrentHashMap<>();
     private final Map<String, String> undone = new ConcurrentHashMap<>();
     private final Map<String, String> stoppedOn = new ConcurrentHashMap<>();
@@ -128,7 +127,6 @@ final class ChannelReconciler {
             faults.clear(Code.PC118, id);
             startEnded(id);
             stopping.remove(id);
-            gatedAt.remove(id);
             sourceTypes.put(id, model.getSourceConnector().getTransportName());
             for (String target : targets.add(model)) {
                 lanes.queue(target);
@@ -150,7 +148,6 @@ final class ChannelReconciler {
             // The mark follows the pause, so a gate that fails leaves no mark on a channel that starts as configured.
             if (pause.pause(id)) {
                 local.setWeStopped(id, true);
-                gatedAt.put(id, now);
             } else {
                 record(id, new Refusal(Code.PC116, messages.pc116(false)), started, true);
             }
@@ -561,9 +558,7 @@ final class ChannelReconciler {
         String line = "A start on " + names.nodeName() + " was undone: " + owner + " owns this channel. Start or "
             + "stop it on " + owner + ".";
         undone.put(id, line);
-        Long gated = gatedAt.get(id);
-        sink.info(line + (gated == null ? ""
-            : " It started " + TimeUnit.NANOSECONDS.toMillis(now - gated) + " ms after the deploy paused it."));
+        sink.info(line);
         if (count >= 3) {
             faults.raise(Code.PC105, id, messages.pc105(owner));
         }

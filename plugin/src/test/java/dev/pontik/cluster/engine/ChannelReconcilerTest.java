@@ -378,7 +378,8 @@ class ChannelReconcilerTest {
 
         assertEquals(3, engine.count("stop ch-1"));
         assertEquals(1, rig.sink.count(Code.PC105));
-        assertTrue(rig.sink.info.stream().anyMatch(l -> l.startsWith("A start on node-a was undone: srv-b owns")));
+        assertTrue(rig.sink.info.contains("A start on node-a was undone: srv-b owns this channel. Start or stop it on "
+            + "srv-b."));
 
         rig.advanceMs(91_000);
         sweep();
