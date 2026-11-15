@@ -23,7 +23,7 @@ final class Desired {
         STOP,
         /** The stop marker is no longer needed: the source is stopped, or this node holds the lease. */
         CLEAR,
-        /** The channel is between states with our start or stop in flight: check how long it has taken. */
+        /** The channel is between states with our start in flight: check how long it has taken. */
         WAIT
     }
 
@@ -49,7 +49,7 @@ final class Desired {
             return Action.NONE;
         }
         if (!Engine.settled(f.channel)) {
-            return f.starting || f.stopping ? Action.WAIT : Action.NONE;
+            return f.starting ? Action.WAIT : Action.NONE;
         }
         if (f.handBack) {
             return f.weStopped ? Action.RESTORE : Action.NONE;
@@ -72,6 +72,6 @@ final class Desired {
         if ((f.mustStop || f.stopping) && f.source == DeployedState.STOPPED) {
             return Action.CLEAR;
         }
-        return f.stopping ? Action.WAIT : Action.NONE;
+        return Action.NONE;
     }
 }
