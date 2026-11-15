@@ -92,7 +92,7 @@ final class Report {
 
         String stoppedOn = reconciler.stoppedOn(id);
         Status status = Status.of(singleOwner, unprotectedBy, holds,
-            seen != null && seen.source == DeployedState.STARTED, reconciler.undone(id), local.operatorStop(id),
+            seen != null && seen.source != DeployedState.STOPPED, reconciler.undone(id), local.operatorStop(id),
             stoppedOn == null ? names.nodeName() : stoppedOn, seen != null && seen.channel == DeployedState.STOPPED,
             k.anotherHolder(readBack, id) ? k.ownerName(row.owner) : null);
         v.status = status.state;

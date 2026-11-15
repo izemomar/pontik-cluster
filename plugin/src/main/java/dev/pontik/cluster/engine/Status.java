@@ -24,7 +24,7 @@ final class Status {
      * Decides a channel's status on this node.
      *
      * @param unprotectedBy the message of a firing code that leaves this channel unprotected, or null
-     * @param running whether the source runs here, or a stop of it is still pending
+     * @param running whether the source is anything but stopped here: started, starting or still stopping
      * @param undone the line of a start this node undid, or null
      * @param stoppedOn where an operator stopped the channel this node holds stopped, or null
      * @param holder the node that holds the lease when it is not this one, or null

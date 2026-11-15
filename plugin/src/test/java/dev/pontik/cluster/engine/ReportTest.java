@@ -17,6 +17,8 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 class ReportTest {
 
@@ -84,6 +86,20 @@ class ReportTest {
         assertEquals(Status.TAKING_OVER, v.reason);
         assertTrue(v.codes.isEmpty());
         assertTrue(rig.sink.fired.isEmpty());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = DeployedState.class, names = {"STOPPING", "STARTING"})
+    void aSourceStillStoppingWithoutALeaseIsUnprotected(DeployedState source) {
+        rig.protect("ch-1");
+        rig.heldBy("ch-1", "srv-b");
+        engine.deploy(Models.file("ch-1"), DeployedState.PAUSING, source);
+        sweep();
+
+        ChannelView v = only(report.channels(rig.keeper, rig.clock().getAsLong()));
+
+        assertEquals(Status.UNPROTECTED, v.status);
+        assertEquals(Status.TAKING_OVER, v.reason);
     }
 
     @Test
