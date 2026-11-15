@@ -165,7 +165,7 @@ class CoordinatorTest {
             String line = sink.info.get(0);
             assertTrue(line.startsWith("Pontik Cluster 0.1.0-test on node-a (server ID srv-a, instance inst-a): "
                 + "RUNNING;"), line);
-            assertTrue(line.contains("lease 30000 ms, heartbeat 10000 ms, fence margin 6000 ms"), line);
+            assertTrue(line.contains("lease 30000 ms, a renewal every 10000 ms, polling stops 6000 ms"), line);
             assertFalse(line.contains("pcl_owner_user"));
             assertFalse(line.contains("pcl-secret-pw"));
             assertFalse(line.contains("jdbc:"));

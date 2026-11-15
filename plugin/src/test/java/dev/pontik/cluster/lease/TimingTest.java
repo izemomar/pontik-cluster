@@ -24,6 +24,13 @@ class TimingTest {
     }
 
     @Test
+    void theStartupLineNamesTheTimingInTheWordsOfTheReadme() {
+        assertEquals("lease 30000 ms, a renewal every 10000 ms, polling stops 6000 ms "
+            + "before a lease could run out, acquisition jitter 0 to 2000 ms, "
+            + "a lease survives 1 failed renewal in a row", Timing.STANDARD.toString());
+    }
+
+    @Test
     void aToleranceBelowTwoIsRejected() {
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
             () -> new Timing(30_000, 12_000, 6_000, 2_000, 1_000, 3_000, 2_000));

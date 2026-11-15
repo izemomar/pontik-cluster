@@ -90,8 +90,10 @@ public final class Timing {
 
     @Override
     public String toString() {
-        return "lease " + leaseMs + " ms, heartbeat " + heartbeatMs + " ms, fence margin " + marginMs
-            + " ms, acquisition jitter 0 to " + jitterMs + " ms, " + tolerance() + " renewals before the fence";
+        int survives = tolerance() - 1;
+        return "lease " + leaseMs + " ms, a renewal every " + heartbeatMs + " ms, polling stops " + marginMs
+            + " ms before a lease could run out, acquisition jitter 0 to " + jitterMs + " ms, a lease survives "
+            + survives + (survives == 1 ? " failed renewal" : " failed renewals") + " in a row";
     }
 
     private static boolean wholeSeconds(long ms) {
