@@ -26,6 +26,8 @@ final class FakeEngine implements Engine {
 
     final Map<String, DeployedState[]> states = new LinkedHashMap<>();
     final Map<String, Channel> models = new LinkedHashMap<>();
+    // The model each channel was last deployed with, which a later save does not change.
+    final Map<String, Channel> running = new LinkedHashMap<>();
     final Set<String> disabled = new HashSet<>();
     final List<String> calls = new ArrayList<>();
     Outcome onStart = (e, id) -> e.set(id, DeployedState.STARTED, DeployedState.STARTED);
@@ -46,6 +48,7 @@ final class FakeEngine implements Engine {
     /** Deploys the channel in the given channel and source states. */
     FakeEngine deploy(Channel model, DeployedState channel, DeployedState source) {
         models.put(model.getId(), model);
+        running.put(model.getId(), model);
         set(model.getId(), channel, source);
         return this;
     }
@@ -129,7 +132,10 @@ final class FakeEngine implements Engine {
     @Override
     public synchronized Channel deployed(String channelId) {
         onDeployed.run();
-        return states.containsKey(channelId) ? models.get(channelId) : null;
+        if (!states.containsKey(channelId)) {
+            return null;
+        }
+        return running.containsKey(channelId) ? running.get(channelId) : models.get(channelId);
     }
 
     @Override

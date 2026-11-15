@@ -17,6 +17,7 @@ import dev.pontik.cluster.lease.Reconciler;
 import dev.pontik.cluster.lease.Store;
 import dev.pontik.cluster.lease.Timing;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
@@ -264,7 +265,15 @@ final class ChannelReconciler {
 
         try {
             Predicate<String> enabled = engine.enabled();
-            for (String id : targets.replace(engine.saved(), id -> fresh.containsKey(id) || enabled.test(id))) {
+            // A deployed copy sends as it was deployed, even after a save that removed its Channel Writer.
+            List<Channel> models = new ArrayList<>(engine.saved());
+            for (String id : fresh.keySet()) {
+                Channel deployed = engine.deployed(id);
+                if (deployed != null) {
+                    models.add(deployed);
+                }
+            }
+            for (String id : targets.replace(models, id -> fresh.containsKey(id) || enabled.test(id))) {
                 lanes.queue(id);
             }
             targetsFailing = false;

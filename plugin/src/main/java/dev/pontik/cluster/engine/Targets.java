@@ -47,14 +47,14 @@ final class Targets {
     }
 
     /**
-     * Replaces the whole set with the writers of the channels that count, and returns the channels
-     * that became or stopped being targets. A disabled channel counts only while it is deployed here,
-     * since the engine never deploys a disabled channel and a channel disabled after its deploy still
-     * sends.
+     * Replaces the whole set with the writers among the given models that count, the saved channels and
+     * the copies deployed here, and returns the channels that became or stopped being targets. A
+     * disabled channel counts only while it is deployed here, since the engine never deploys a disabled
+     * channel and a channel disabled after its deploy still sends.
      */
-    synchronized Set<String> replace(Collection<Channel> saved, Predicate<String> counts) {
+    synchronized Set<String> replace(Collection<Channel> models, Predicate<String> counts) {
         Map<String, String> fresh = new HashMap<>();
-        for (Channel model : saved) {
+        for (Channel model : models) {
             if (counts.test(model.getId())) {
                 for (Map.Entry<String, String> e : scan(model).entrySet()) {
                     fresh.putIfAbsent(e.getKey(), e.getValue());

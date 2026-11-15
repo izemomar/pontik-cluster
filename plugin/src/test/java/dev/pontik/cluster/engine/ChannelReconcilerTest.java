@@ -656,6 +656,27 @@ class ChannelReconcilerTest {
     }
 
     @Test
+    void aWriterSavedWithoutItsChannelWriterStillCountsWhileItsDeployedCopySends() {
+        rig.protect("ch-1");
+        deploy(Models.file("ch-1"), DeployedState.PAUSED, DeployedState.STOPPED);
+        deploy(Models.writingTo(Models.file("router"), "ch-1"), DeployedState.STARTED, DeployedState.STARTED);
+        drain();
+        assertTrue(rig.faults.isFiring(Code.PC115, "ch-1"));
+
+        engine.models.put("router", Models.file("router"));
+        sweep();
+
+        assertEquals("name of router", targets.writer("ch-1"));
+        assertTrue(rig.faults.isFiring(Code.PC115, "ch-1"));
+
+        deploy(Models.file("router"), DeployedState.STARTED, DeployedState.STARTED);
+        sweep();
+
+        assertNull(targets.writer("ch-1"));
+        assertFalse(rig.faults.isFiring(Code.PC115, "ch-1"));
+    }
+
+    @Test
     void aSweepReadsTheEnabledFlagsOnceForAllItsChannels() {
         for (String id : new String[] {"ch-1", "ch-2", "ch-3"}) {
             engine.models.put(id, Models.file(id));
