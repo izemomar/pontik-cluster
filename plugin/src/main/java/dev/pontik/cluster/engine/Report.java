@@ -99,9 +99,9 @@ final class Report {
         facts.undone = reconciler.undone(id);
         facts.operatorStop = local.operatorStop(id);
         String stoppedOn = reconciler.stoppedOn(id);
-        facts.stoppedOn = stoppedOn == null ? names.nodeName() : stoppedOn;
+        facts.stoppedOn = stoppedOn == null ? "\"" + names.nodeName() + "\"" : stoppedOn;
         facts.channelStopped = seen != null && seen.channel == DeployedState.STOPPED;
-        facts.holder = k.anotherHolder(readBack, id) ? k.ownerName(row.owner) : null;
+        facts.holder = k.anotherHolder(readBack, id) ? "\"" + k.ownerName(row.owner) + "\"" : null;
         Status status = Status.of(facts);
         v.status = status.state;
         v.reason = status.reason;

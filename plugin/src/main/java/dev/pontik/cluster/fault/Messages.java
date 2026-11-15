@@ -64,11 +64,12 @@ public final class Messages {
 
     /**
      * Returns the PC-104 text. The cause is a fixed phrase or an SQLState, never exception text, and
-     * null when none is known.
+     * null when none is known. The owner is as a line shows it: a name in double quotes, or "another
+     * node".
      */
     public String pc104(String owner, String cause) {
-        return "This node could not stop this channel's source" + because(cause) + " although \"" + owner
-            + "\" owns it, so both may read. Please stop the channel by hand on this node; if it does not stop, "
+        return "This node could not stop this channel's source" + because(cause) + " although " + owner
+            + " owns it, so both may read. Please stop the channel by hand on this node; if it does not stop, "
             + "Halt it, which can deliver the message in flight twice.";
     }
 
@@ -77,9 +78,10 @@ public final class Messages {
         return "still stopping after " + leaseSeconds + " seconds";
     }
 
+    /** Returns the PC-105 text. The owner is as a line shows it, as for PC-104. */
     public String pc105(String owner) {
-        return "Something keeps starting this channel on this node although \"" + owner
-            + "\" owns it, so it may read twice. Please find the script or monitor that starts it, "
+        return "Something keeps starting this channel on this node although " + owner
+            + " owns it, so it may read twice. Please find the script or monitor that starts it, "
             + "and start protected channels on the node that owns them.";
     }
 
@@ -186,7 +188,7 @@ public final class Messages {
 
     public String pc116(boolean wholeNode) {
         return "This node cannot reach the engine's runtime copy " + (wholeNode ? "of any channel" : "of this channel")
-            + ", so it cannot keep " + (wholeNode ? "any source" : "its source") + " paused; "
+            + ", so it cannot keep " + (wholeNode ? "any channel" : "this channel") + " Paused; "
             + (wholeNode ? "every protected channel" : "this channel") + " runs as configured here. "
             + (wholeNode ? "Please restart this node" : "Please redeploy this channel")
             + "; if it happens again, please report it with the engine log.";

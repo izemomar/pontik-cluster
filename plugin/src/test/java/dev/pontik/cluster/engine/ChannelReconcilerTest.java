@@ -217,7 +217,7 @@ class ChannelReconcilerTest {
 
         assertEquals(1, engine.count("start ch-1"));
         assertFalse(rig.local.weStopped("ch-1"));
-        assertTrue(rig.sink.info.contains("Started ch-1: this node holds the lease."));
+        assertTrue(rig.sink.info.contains("Started \"ch-1\": this node holds the lease."));
     }
 
     @Test
@@ -288,7 +288,7 @@ class ChannelReconcilerTest {
         assertEquals(0, engine.count("start ch-1"));
         assertFalse(rig.local.weStopped("ch-1"));
         assertTrue(rig.local.operatorStop("ch-1"));
-        assertTrue(rig.sink.info.contains("Left ch-1 paused: stopped by an operator on srv-b."));
+        assertTrue(rig.sink.info.contains("Left \"ch-1\" Paused: stopped by an operator on \"srv-b\"."));
 
         sweep();
         assertTrue(rig.local.operatorStop("ch-1"));
@@ -380,8 +380,8 @@ class ChannelReconcilerTest {
 
         assertEquals(3, engine.count("stop ch-1"));
         assertEquals(1, rig.sink.count(Code.PC105));
-        assertTrue(rig.sink.info.contains("A start on node-a was undone: srv-b owns this channel. Start or stop it on "
-            + "srv-b."));
+        assertTrue(rig.sink.info.contains("A start on \"node-a\" was undone: \"srv-b\" owns this channel. Start or "
+            + "stop it on \"srv-b\"."));
 
         rig.advanceMs(91_000);
         sweep();
@@ -558,7 +558,7 @@ class ChannelReconcilerTest {
         assertEquals(3, engine.count("stop ch-1"));
         assertTrue(rig.faults.isFiring(Code.PC104, "ch-1"));
         assertEquals(0, rig.sink.count(Code.PC105));
-        assertEquals(1, rig.sink.info.stream().filter(l -> l.startsWith("A start on node-a was undone")).count());
+        assertEquals(1, rig.sink.info.stream().filter(l -> l.startsWith("A start on \"node-a\" was undone")).count());
     }
 
     // Sweeps and hand-backs
@@ -617,7 +617,7 @@ class ChannelReconcilerTest {
         drain();
 
         assertNull(rig.ownership.get("ch-1"));
-        assertTrue(rig.sink.info.contains("Released the lease on ch-1: the channel was deleted."));
+        assertTrue(rig.sink.info.contains("Released the lease on \"ch-1\": the channel was deleted."));
         assertEquals(2, engine.count("start ch-1"));
         assertFalse(rig.local.weStopped("ch-1"));
     }
@@ -718,7 +718,7 @@ class ChannelReconcilerTest {
         sweep();
         rig.tick();
         assertNull(rig.ownership.get("ch-1"));
-        assertTrue(rig.sink.info.contains("Released the lease on ch-1: undeployed here."));
+        assertTrue(rig.sink.info.contains("Released the lease on \"ch-1\": undeployed here."));
     }
 
     @Test
@@ -859,13 +859,13 @@ class ChannelReconcilerTest {
         rig.acquire();
         drain();
         assertTrue(rig.local.operatorStop("ch-1"));
-        assertEquals("srv-b", reconciler.stoppedOn("ch-1"));
+        assertEquals("\"srv-b\"", reconciler.stoppedOn("ch-1"));
         engine.onEnabled = () -> engine.set("ch-1", DeployedState.PAUSING, DeployedState.STOPPED);
 
         reconciler.sweep();
 
         assertTrue(rig.local.operatorStop("ch-1"));
-        assertEquals("srv-b", reconciler.stoppedOn("ch-1"));
+        assertEquals("\"srv-b\"", reconciler.stoppedOn("ch-1"));
     }
 
     @Test

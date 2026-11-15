@@ -432,7 +432,7 @@ public final class Keeper {
         for (Due d : due) {
             local.released(d.channelId);
             if (released.contains(d.channelId)) {
-                sink.info("Released the lease on " + names.channelName(d.channelId) + ": " + d.reason + ".");
+                sink.info("Released the lease on \"" + names.channelName(d.channelId) + "\": " + d.reason + ".");
             } else {
                 faults.raise(Code.PC101, d.channelId, messages.pc101Release(Times.iso(readBack.dbNow)));
             }
@@ -557,7 +557,8 @@ public final class Keeper {
                 fence.arm(row.channelId, row.epoch, validUntil);
                 unowned.remove(row.channelId);
                 faults.clear(Code.PC103, row.channelId);
-                sink.info("Acquired the lease on " + names.channelName(row.channelId) + " (epoch " + row.epoch + ").");
+                sink.info("Acquired the lease on \"" + names.channelName(row.channelId) + "\" (epoch " + row.epoch
+                    + ").");
                 reconciler.queue(row.channelId);
             }
         } catch (Throwable t) {
@@ -608,7 +609,7 @@ public final class Keeper {
             } else {
                 for (String id : released) {
                     local.released(id);
-                    sink.info("Released the lease on " + names.channelName(id) + ": shutting down.");
+                    sink.info("Released the lease on \"" + names.channelName(id) + "\": shutting down.");
                 }
             }
         }

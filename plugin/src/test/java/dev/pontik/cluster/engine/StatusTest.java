@@ -42,8 +42,9 @@ class StatusTest {
         assertEquals(Status.UNPROTECTED, Status.of(f).state);
         assertEquals(Status.TAKING_OVER, Status.of(f).reason);
 
-        f.undone = "A start on node-a was undone: node-b owns this channel. Start or stop it on node-b.";
-        f.holder = "node-b";
+        f.undone = "A start on \"node-a\" was undone: \"node-b\" owns this channel. Start or stop it on "
+            + "\"node-b\".";
+        f.holder = "\"node-b\"";
         assertEquals(f.undone, Status.of(f).reason);
     }
 
@@ -57,19 +58,19 @@ class StatusTest {
         Status.Facts f = facts();
         f.held = true;
         f.operatorStop = true;
-        f.stoppedOn = "node-b";
+        f.stoppedOn = "\"node-b\"";
 
         Status s = Status.of(f);
 
         assertEquals(Status.PROTECTED, s.state);
-        assertEquals("stopped by an operator on node-b", s.reason);
+        assertEquals("stopped by an operator on \"node-b\"", s.reason);
     }
 
     @Test
     void aNonOwnerStoppedHereSaysItCannotTakeOver() {
         Status.Facts f = facts();
         f.channelStopped = true;
-        f.holder = "node-b";
+        f.holder = "\"node-b\"";
 
         Status s = Status.of(f);
 
@@ -80,8 +81,8 @@ class StatusTest {
     @Test
     void aWaitingNonOwnerNamesTheHolder() {
         Status.Facts f = facts();
-        f.holder = "node-b";
-        assertEquals("node-b holds the lease", Status.of(f).reason);
+        f.holder = "\"node-b\"";
+        assertEquals("\"node-b\" holds the lease", Status.of(f).reason);
 
         f.holder = null;
         assertEquals("no node holds the lease yet", Status.of(f).reason);

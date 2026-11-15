@@ -163,7 +163,7 @@ class CoordinatorTest {
             assertEquals("node-a", Pg.text("SELECT node_name FROM pcl_node WHERE node_id = 'srv-a'"));
 
             String line = sink.info.get(0);
-            assertTrue(line.startsWith("Pontik Cluster 0.1.0-test on node-a (server ID srv-a, instance inst-a): "
+            assertTrue(line.startsWith("Pontik Cluster 0.1.0-test on \"node-a\" (server ID srv-a, instance inst-a): "
                 + "RUNNING;"), line);
             assertTrue(line.contains("lease 30000 ms, a renewal every 10000 ms, polling stops 6000 ms"), line);
             assertFalse(line.contains("pcl_owner_user"));
@@ -183,7 +183,7 @@ class CoordinatorTest {
             assertNull(Pg.text("SELECT owner_node_id FROM pcl_lease WHERE channel_id = 'ch-1'"));
             assertTrue(Pg.bool("SELECT last_seen_at < clock_timestamp() AT TIME ZONE 'UTC' "
                 + "- interval '29 seconds' FROM pcl_node WHERE node_id = 'srv-a'"));
-            assertTrue(sink.info.contains("Released the lease on Orders: shutting down."));
+            assertTrue(sink.info.contains("Released the lease on \"Orders\": shutting down."));
             assertTrue(sink.warnings.isEmpty(), sink.warnings.toString());
 
             // The engine may stop us twice, and the second stop must change nothing.

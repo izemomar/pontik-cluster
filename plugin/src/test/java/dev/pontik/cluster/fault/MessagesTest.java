@@ -35,13 +35,14 @@ class MessagesTest {
             + "check that every node reaches the database.", m.pc103(false));
         assertEquals("This node could not stop this channel's source (still stopping after 30 seconds) although "
             + "\"node-b\" owns it, so both may read. Please stop the channel by hand on this node; if it does not "
-            + "stop, Halt it, which can deliver the message in flight twice.", m.pc104("node-b", m.stillStopping()));
-        assertEquals("This node could not stop this channel's source although \"node-b\" owns it, so both may read. "
+            + "stop, Halt it, which can deliver the message in flight twice.",
+            m.pc104("\"node-b\"", m.stillStopping()));
+        assertEquals("This node could not stop this channel's source although another node owns it, so both may read. "
             + "Please stop the channel by hand on this node; if it does not stop, Halt it, which can deliver the "
-            + "message in flight twice.", m.pc104("node-b", null));
+            + "message in flight twice.", m.pc104("another node", null));
         assertEquals("Something keeps starting this channel on this node although \"node-b\" owns it, so it may "
             + "read twice. Please find the script or monitor that starts it, and start protected channels on the node "
-            + "that owns them.", m.pc105("node-b"));
+            + "that owns them.", m.pc105("\"node-b\""));
     }
 
     @Test
@@ -99,11 +100,11 @@ class MessagesTest {
         assertEquals("Refused: Channel Writer \"Router\" sends messages into this channel, and they would fail on "
             + "every node but the owner. Please route them another way, or use unmanaged for this channel.",
             m.pc115("Router"));
-        assertEquals("This node cannot reach the engine's runtime copy of this channel, so it cannot keep its source "
-            + "paused; this channel runs as configured here. Please redeploy this channel; if it happens again, "
+        assertEquals("This node cannot reach the engine's runtime copy of this channel, so it cannot keep this channel "
+            + "Paused; this channel runs as configured here. Please redeploy this channel; if it happens again, "
             + "please report it with the engine log.", m.pc116(false));
-        assertEquals("This node cannot reach the engine's runtime copy of any channel, so it cannot keep any source "
-            + "paused; every protected channel runs as configured here. Please restart this node; if it happens "
+        assertEquals("This node cannot reach the engine's runtime copy of any channel, so it cannot keep any channel "
+            + "Paused; every protected channel runs as configured here. Please restart this node; if it happens "
             + "again, please report it with the engine log.", m.pc116(true));
         assertEquals("This node could not start this channel after taking it over (STOPPED); it released the lease "
             + "and stays out for 90 seconds while another node takes over. Please check this node's access to the "

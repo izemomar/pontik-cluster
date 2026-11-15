@@ -431,9 +431,9 @@ final class ChannelReconciler {
         local.clearAcquiredStopped(id);
         ownership.clearMustStop(id);
         String on = row != null && row.owner != null && !row.owner.equals(names.nodeId())
-            ? k.ownerName(row.owner) : "another node";
+            ? "\"" + k.ownerName(row.owner) + "\"" : "another node";
         stoppedOn.put(id, on);
-        sink.info("Left " + names.channelName(id) + " paused: stopped by an operator on " + on + ".");
+        sink.info("Left \"" + names.channelName(id) + "\" Paused: stopped by an operator on " + on + ".");
     }
 
     private void start(String id) {
@@ -465,7 +465,7 @@ final class ChannelReconciler {
         if (source == DeployedState.STARTED) {
             local.forgetWeStopped(id, deploys);
             faults.clear(Code.PC118, id);
-            sink.info("Started " + names.channelName(id) + ": this node holds the lease.");
+            sink.info("Started \"" + names.channelName(id) + "\": this node holds the lease.");
         } else {
             startFailed(id, String.valueOf(source));
         }
@@ -487,7 +487,7 @@ final class ChannelReconciler {
             if (f.anotherHolder && !f.mustStop) {
                 undo(id, owner);
             } else {
-                sink.info("Stopped " + names.channelName(id) + ": "
+                sink.info("Stopped \"" + names.channelName(id) + "\": "
                     + (f.anotherHolder ? owner + " holds the lease" : "this node lost its lease") + ".");
             }
         }
@@ -557,8 +557,8 @@ final class ChannelReconciler {
             }
             count = times.size();
         }
-        String line = "A start on " + names.nodeName() + " was undone: " + owner + " owns this channel. Start or "
-            + "stop it on " + owner + ".";
+        String line = "A start on \"" + names.nodeName() + "\" was undone: " + owner + " owns this channel. Start "
+            + "or stop it on " + owner + ".";
         undone.put(id, line);
         sink.info(line);
         if (count >= 3) {
@@ -635,8 +635,9 @@ final class ChannelReconciler {
         }
     }
 
+    // The owner as a line shows it: its name in double quotes, or another node when no row names one.
     private String ownerOf(Keeper k, Store.ReadBack rb, String id) {
         Store.Row row = rb.rows.get(id);
-        return row == null || row.owner == null ? "another node" : k.ownerName(row.owner);
+        return row == null || row.owner == null ? "another node" : "\"" + k.ownerName(row.owner) + "\"";
     }
 }

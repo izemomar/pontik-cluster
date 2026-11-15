@@ -400,7 +400,7 @@ class KeeperTest {
 
         nextTick();
         assertTrue(ownership.isEmpty());
-        assertTrue(sink.info.contains("Released the lease on Orders: node declined."));
+        assertTrue(sink.info.contains("Released the lease on \"Orders\": node declined."));
         int mark = store.calls.size();
         keeper.acquire();
         assertEquals(list(), store.callsSince(mark));
@@ -506,7 +506,7 @@ class KeeperTest {
         nextTick();
 
         assertNull(ownership.get("ch-1"));
-        assertTrue(sink.info.contains("Released the lease on Orders: undeployed here."));
+        assertTrue(sink.info.contains("Released the lease on \"Orders\": undeployed here."));
     }
 
     @Test
@@ -542,7 +542,7 @@ class KeeperTest {
         nextTick();
 
         assertNull(ownership.get("ch-1"));
-        assertTrue(sink.info.contains("Released the lease on Orders: undeployed here."));
+        assertTrue(sink.info.contains("Released the lease on \"Orders\": undeployed here."));
         assertTrue(sink.fired.isEmpty());
     }
 
@@ -562,9 +562,9 @@ class KeeperTest {
         nextTick();
 
         assertTrue(ownership.isEmpty());
-        assertTrue(sink.info.contains("Released the lease on Orders: set to unmanaged."));
-        assertTrue(sink.info.contains("Released the lease on ch-2: the channel was deleted."));
-        assertTrue(sink.info.contains("Released the lease on ch-3: refused (PC-114)."));
+        assertTrue(sink.info.contains("Released the lease on \"Orders\": set to unmanaged."));
+        assertTrue(sink.info.contains("Released the lease on \"ch-2\": the channel was deleted."));
+        assertTrue(sink.info.contains("Released the lease on \"ch-3\": refused (PC-114)."));
         assertTrue(reconciler.queued.containsAll(list("ch-1", "ch-2", "ch-3")));
         assertFalse(ownership.mustStop("ch-1"));
     }
@@ -581,7 +581,7 @@ class KeeperTest {
         nextTick();
 
         assertTrue(ownership.isEmpty());
-        assertTrue(sink.info.contains("Released the lease on Orders: set to unmanaged."));
+        assertTrue(sink.info.contains("Released the lease on \"Orders\": set to unmanaged."));
         assertNull(ownership.get("ch-2"));
     }
 
@@ -687,7 +687,7 @@ class KeeperTest {
     @Test
     void anAcquisitionLogsOneLineAndARenewalLogsNone() {
         own("ch-1");
-        assertEquals(list("Acquired the lease on Orders (epoch 1)."), sink.info);
+        assertEquals(list("Acquired the lease on \"Orders\" (epoch 1)."), sink.info);
 
         nextTick();
         nextTick();
@@ -792,8 +792,8 @@ class KeeperTest {
 
         assertEquals(list("release", "markGone"), store.callsSince(mark));
         assertTrue(ownership.isEmpty());
-        assertTrue(sink.info.contains("Released the lease on Orders: shutting down."));
-        assertTrue(sink.info.contains("Released the lease on ch-2: shutting down."));
+        assertTrue(sink.info.contains("Released the lease on \"Orders\": shutting down."));
+        assertTrue(sink.info.contains("Released the lease on \"ch-2\": shutting down."));
     }
 
     @Test

@@ -105,7 +105,7 @@ public final class Coordinator implements Names {
             sink.warn("The plugin could not start on this node because of an unexpected "
                 + t.getClass().getSimpleName() + ".", t);
         } finally {
-            sink.info("Pontik Cluster " + node.pluginVersion + " on " + node.name + " (server ID " + node.id
+            sink.info("Pontik Cluster " + node.pluginVersion + " on \"" + node.name + "\" (server ID " + node.id
                 + ", instance " + node.instance + "): " + state() + "; " + timing + ".");
         }
     }
