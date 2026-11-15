@@ -9,6 +9,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.mirth.connect.model.ExtensionPermission;
+import com.mirth.connect.model.converters.ObjectXMLSerializer;
+import com.thoughtworks.xstream.mapper.ClassAliasingMapper;
+import dev.pontik.cluster.api.ChannelView;
 import dev.pontik.cluster.api.NodeView;
 import dev.pontik.cluster.fault.RecordingSink;
 import dev.pontik.cluster.lease.ConfigWriter;
@@ -17,6 +20,7 @@ import dev.pontik.cluster.lease.DbSettings;
 import dev.pontik.cluster.lease.Link;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
 class ClusterPluginTest {
@@ -65,6 +69,17 @@ class ClusterPluginTest {
         assertEquals("OFF", v.state);
         assertNull(v.timing);
         assertNull(v.gateAvailable);
+    }
+
+    @Test
+    void initRegistersTheAliasesOfTheTwoViews() {
+        plugin.init(new Properties());
+
+        // The engine's outer mapper reaches into Rhino, so we ask the aliasing mapper under it.
+        ClassAliasingMapper aliases = (ClassAliasingMapper) ObjectXMLSerializer.getInstance().getXStream()
+            .getMapper().lookupMapperOfType(ClassAliasingMapper.class);
+        assertEquals("pontikNode", aliases.serializedClass(NodeView.class));
+        assertEquals("pontikChannel", aliases.serializedClass(ChannelView.class));
     }
 
     private static String[] sorted(String[] names) {
