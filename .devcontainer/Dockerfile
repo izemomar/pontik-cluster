@@ -35,9 +35,7 @@ RUN set -eux; \
     apt-get install --no-install-recommends -y \
         ca-certificates \
         curl \
-        git \
-        jq \
-        make; \
+        git; \
     rm -rf /var/lib/apt/lists/*
 
 # --------------------------------------------------------------------------
