@@ -3,18 +3,24 @@ package dev.pontik.cluster.api;
 
 import com.mirth.connect.client.core.api.MirthApiException;
 import com.mirth.connect.model.User;
+import com.mirth.connect.server.api.CheckAuthorizedChannelId;
 import com.mirth.connect.server.api.MirthServlet;
 import com.mirth.connect.server.controllers.ControllerFactory;
 import dev.pontik.cluster.engine.ClusterPlugin;
 import dev.pontik.cluster.engine.Rejection;
 import java.util.List;
+import java.util.function.Predicate;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 
-/** The plugin's REST calls. The engine checks the caller's login and permission before each one. */
+/**
+ * The plugin's REST calls. The engine checks the caller's login and permission before each one. A
+ * caller limited to some channels may set the mode of those channels only, and sees no row, lease or
+ * fault of the others.
+ */
 public class ClusterServlet extends MirthServlet implements ClusterServletInterface {
 
     public ClusterServlet(@Context HttpServletRequest request, @Context SecurityContext sc) {
@@ -22,26 +28,36 @@ public class ClusterServlet extends MirthServlet implements ClusterServletInterf
     }
 
     @Override
+    @CheckAuthorizedChannelId
     public void setMode(String channelId, String mode, String rereadable) {
         try {
             plugin().setMode(channelId, mode, rereadable, user());
         } catch (Rejection r) {
-            throw answer(r);
+            throw answer(r, this::isChannelRedacted);
         }
     }
 
     @Override
     public List<ChannelView> getChannels() {
         try {
-            return plugin().channels();
+            List<ChannelView> views = plugin().channels();
+            views.removeIf(v -> isChannelRedacted(v.channelId));
+            return views;
         } catch (Rejection r) {
-            throw answer(r);
+            throw answer(r, this::isChannelRedacted);
         }
     }
 
     @Override
     public NodeView getLocal() {
-        return plugin().local();
+        return redact(plugin().local(), this::isChannelRedacted);
+    }
+
+    // A user limited to some channels sees no lease and no fault of the others; a node fault stays.
+    static NodeView redact(NodeView v, Predicate<String> hidden) {
+        v.leases.removeIf(l -> hidden.test(l.channelId));
+        v.faults.removeIf(f -> f.channelId != null && hidden.test(f.channelId));
+        return v;
     }
 
     private static ClusterPlugin plugin() {
@@ -54,9 +70,10 @@ public class ClusterServlet extends MirthServlet implements ClusterServletInterf
     }
 
     // A text body explains a refusal in the words of the fault message; a 503 carries this node's view.
-    private static MirthApiException answer(Rejection r) {
-        Response.ResponseBuilder response = Response.status(r.status).entity(r.body);
-        if (r.body instanceof String) {
+    private static MirthApiException answer(Rejection r, Predicate<String> hidden) {
+        Object body = r.body instanceof NodeView ? redact((NodeView) r.body, hidden) : r.body;
+        Response.ResponseBuilder response = Response.status(r.status).entity(body);
+        if (body instanceof String) {
             response.type(MediaType.TEXT_PLAIN_TYPE);
         }
         return new MirthApiException(response.build());
