@@ -112,7 +112,7 @@ class ChannelReconcilerTest {
 
         deploy(Models.file("ch-1"), DeployedState.STARTED, DeployedState.STARTED);
 
-        assertEquals("PC-116", rig.local.refusal("ch-1"));
+        assertEquals(Code.PC116, rig.local.refusal("ch-1"));
         assertFalse(rig.faults.isFiring(Code.PC116, "ch-1"));
     }
 

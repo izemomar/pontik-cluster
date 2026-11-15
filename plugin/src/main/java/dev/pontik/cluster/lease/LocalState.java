@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 package dev.pontik.cluster.lease;
 
+import dev.pontik.cluster.fault.Code;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -32,7 +33,7 @@ public final class LocalState {
         boolean deployed;
         boolean pending;
         int absentSweeps;
-        String refusal;
+        Code refusal;
         boolean configuredStarted;
         boolean channelStopped;
         boolean sourceStoppedByOperator;
@@ -165,11 +166,11 @@ public final class LocalState {
 
     /**
      * Records whether this channel may be protected here, with its configured initial state. A null
-     * refusal code means the channel is eligible.
+     * refusal means the channel is eligible.
      */
-    public synchronized void verdict(String channelId, String refusalCode, boolean configuredStarted) {
+    public synchronized void verdict(String channelId, Code refusal, boolean configuredStarted) {
         Channel c = channel(channelId);
-        c.refusal = refusalCode;
+        c.refusal = refusal;
         c.configuredStarted = configuredStarted;
     }
 
@@ -248,7 +249,7 @@ public final class LocalState {
         return c != null && c.deployed;
     }
 
-    public synchronized String refusal(String channelId) {
+    public synchronized Code refusal(String channelId) {
         Channel c = channels.get(channelId);
         return c == null ? null : c.refusal;
     }

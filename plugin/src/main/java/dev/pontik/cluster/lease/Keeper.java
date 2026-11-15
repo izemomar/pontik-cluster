@@ -393,8 +393,11 @@ public final class Keeper {
             return null;
         }
         switch (why) {
-            case REFUSED:
-                return new Due(id, epoch, "refused (" + local.refusal(id) + ")", true);
+            case REFUSED: {
+                // A redeploy may have cleared the refusal since the release; the lease is gone either way.
+                Code refusal = local.refusal(id);
+                return new Due(id, epoch, refusal == null ? "refused" : "refused (" + refusal.label() + ")", true);
+            }
             case START_FAILED:
                 return new Due(id, epoch, "could not start it (PC-118)", false);
             default:

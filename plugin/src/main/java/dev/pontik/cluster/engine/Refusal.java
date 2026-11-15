@@ -13,14 +13,4 @@ final class Refusal {
         this.code = code;
         this.message = message;
     }
-
-    /** Returns the code a refusal label names, such as PC-106, or null for no refusal. */
-    static Code code(String label) {
-        for (Code code : Code.values()) {
-            if (code.label().equals(label)) {
-                return code;
-            }
-        }
-        return null;
-    }
 }

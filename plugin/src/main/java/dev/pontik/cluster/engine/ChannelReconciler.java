@@ -189,7 +189,7 @@ final class ChannelReconciler {
 
         if (!singleOwner) {
             clearRefusal(id);
-        } else if (status != null && local.deployedHere(id) && !Code.PC116.label().equals(local.refusal(id))) {
+        } else if (status != null && local.deployedHere(id) && local.refusal(id) != Code.PC116) {
             // An opt-in on a deployed channel, or a Channel Writer that came or went, has no deploy hook.
             Channel model = engine.deployed(id);
             if (model != null) {
@@ -373,11 +373,10 @@ final class ChannelReconciler {
 
     // A refusal raises its code once; a missing gate is one node fault, not one per channel.
     private void record(String id, Refusal refusal, boolean started, boolean singleOwner) {
-        String before = local.refusal(id);
-        String after = refusal == null ? null : refusal.code.label();
-        local.verdict(id, after, started);
-        Code old = Refusal.code(before);
-        if (old != null && (!singleOwner || !old.label().equals(after))) {
+        Code old = local.refusal(id);
+        Code now = refusal == null ? null : refusal.code;
+        local.verdict(id, now, started);
+        if (old != null && (!singleOwner || old != now)) {
             faults.clear(old, id);
         }
         if (refusal != null && singleOwner && !(refusal.code == Code.PC116 && pause == null)) {
@@ -386,7 +385,7 @@ final class ChannelReconciler {
     }
 
     private void clearRefusal(String id) {
-        Code old = Refusal.code(local.refusal(id));
+        Code old = local.refusal(id);
         // PC-116 clears at the channel's next deploy, not when the channel turns unmanaged.
         if (old != null && old != Code.PC116) {
             faults.clear(old, id);

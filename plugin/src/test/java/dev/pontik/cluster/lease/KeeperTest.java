@@ -557,7 +557,7 @@ class KeeperTest {
 
         store.modes.put("ch-1", Store.UNMANAGED);
         store.modes.remove("ch-2");
-        local.verdict("ch-3", "PC-114", true);
+        local.verdict("ch-3", Code.PC114, true);
         reconciler.queued.clear();
         nextTick();
 

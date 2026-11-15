@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.pontik.cluster.fault.Code;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -87,7 +88,7 @@ class LocalStateTest {
     @Test
     void aRefusalAndAFailedStartAreDueAtOnce() {
         local.deployed("ch-1", "Orders");
-        local.verdict("ch-1", "PC-114", true);
+        local.verdict("ch-1", Code.PC114, true);
         assertEquals(LocalState.Release.REFUSED, due("ch-1"));
 
         local.deployed("ch-2", "Billing");
@@ -147,7 +148,7 @@ class LocalStateTest {
         clock.advanceMs(90_000);
         assertTrue(local.eligible("ch-1", clock.getAsLong()));
 
-        local.verdict("ch-1", "PC-106", true);
+        local.verdict("ch-1", Code.PC106, true);
         assertFalse(local.eligible("ch-1", clock.getAsLong()));
 
         assertFalse(local.eligible("unknown", clock.getAsLong()));
