@@ -39,9 +39,12 @@ final class Sql {
     static final String MISSING_TABLES = "SELECT to_regclass('pcl_node') IS NULL,"
         + " to_regclass('pcl_lease') IS NULL, to_regclass('pcl_channel_config') IS NULL";
 
-    static final String MISSING_PRIVILEGES = "SELECT t, p"
-        + " FROM unnest(ARRAY['pcl_node','pcl_lease','pcl_channel_config']) t"
-        + " CROSS JOIN unnest(ARRAY['SELECT','INSERT','UPDATE','DELETE']) p"
+    // We never delete a node or lease row, so only pcl_channel_config needs DELETE.
+    static final String MISSING_PRIVILEGES = "SELECT t, p FROM (VALUES"
+        + " ('pcl_node','SELECT'), ('pcl_node','INSERT'), ('pcl_node','UPDATE'),"
+        + " ('pcl_lease','SELECT'), ('pcl_lease','INSERT'), ('pcl_lease','UPDATE'),"
+        + " ('pcl_channel_config','SELECT'), ('pcl_channel_config','INSERT'),"
+        + " ('pcl_channel_config','UPDATE'), ('pcl_channel_config','DELETE')) AS x(t, p)"
         + " WHERE NOT has_table_privilege(t, p)";
 
     static final String WRONG_COLUMNS = "SELECT x.t, x.c, format_type(a.atttypid, a.atttypmod)"

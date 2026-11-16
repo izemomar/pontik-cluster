@@ -23,7 +23,8 @@ import org.junit.jupiter.api.Test;
 class BootstrapTest {
 
     private static final String GRANT =
-        "GRANT SELECT, INSERT, UPDATE, DELETE ON pcl_node, pcl_lease, pcl_channel_config TO restricted";
+        "GRANT SELECT, INSERT, UPDATE ON pcl_node, pcl_lease, pcl_channel_config TO restricted";
+    private static final String GRANT_DELETE = "GRANT DELETE ON pcl_channel_config TO restricted";
 
     @BeforeEach
     void emptyDatabase() throws SQLException {
@@ -66,7 +67,7 @@ class BootstrapTest {
 
     @Test
     void aUserWithoutCreateUsesTheTablesADbaMadeAndCreatesNothing() throws SQLException {
-        Pg.execute(Sql.CREATE_NODE, Sql.CREATE_LEASE, Sql.CREATE_CHANNEL_CONFIG, GRANT);
+        Pg.execute(Sql.CREATE_NODE, Sql.CREATE_LEASE, Sql.CREATE_CHANNEL_CONFIG, GRANT, GRANT_DELETE);
 
         // The user may not create in the schema, so any CREATE we sent would fail with 42501.
         bootstrap(restricted());
@@ -86,13 +87,12 @@ class BootstrapTest {
 
     @Test
     void aMissingPrivilegeFailsWithTheTableAndPrivilegeNamed() throws SQLException {
-        Pg.execute(Sql.CREATE_NODE, Sql.CREATE_LEASE, Sql.CREATE_CHANNEL_CONFIG, GRANT,
-            "REVOKE DELETE ON pcl_lease FROM restricted");
+        Pg.execute(Sql.CREATE_NODE, Sql.CREATE_LEASE, Sql.CREATE_CHANNEL_CONFIG, GRANT);
 
         BootstrapException e = assertThrows(BootstrapException.class, () -> bootstrap(restricted()));
 
         assertEquals(BootstrapException.Kind.MISSING_PRIVILEGE, e.kind);
-        assertEquals("DELETE on pcl_lease", e.subject);
+        assertEquals("DELETE on pcl_channel_config", e.subject);
     }
 
     @Test
