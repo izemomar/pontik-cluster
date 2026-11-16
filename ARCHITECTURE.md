@@ -18,8 +18,8 @@ where each part lives and which rules the code keeps.
 
 ## Bird's Eye View
 
-The plugin is one Open Integration Engine™ extension, built for Java 8, that runs inside every
-node's engine. It has four parts, kept apart on purpose:
+The plugin is one Eclipse Open Integration Engine™ extension, built for Java 8, that runs inside
+every node's engine. It has four parts, kept apart on purpose:
 
 - **The lease keeper** is one scheduled thread that talks only to the database. Every 10 seconds
   it renews the leases this node holds, reads back every lease and every channel's mode, releases
@@ -170,3 +170,7 @@ Three rules carry it.
 Cache Consistency", SOSP 1989.
 
 [2] M. Kleppmann, "How to do distributed locking", 2016.
+
+## Trademarks
+
+Eclipse and Open Integration Engine are trademarks of Eclipse Foundation AISBL.
