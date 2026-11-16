@@ -5,8 +5,8 @@
 # --------------------------------------------------------------------------
 #
 # This image gives you everything you need to build Pontik Cluster: JDK 21,
-# the Docker CLI with Compose for integration testing, and a warmed Gradle
-# distribution. Your workspace is mounted at runtime by devcontainer.json.
+# the Docker CLI with Compose, and a warmed Gradle distribution. Your
+# workspace is mounted at runtime by devcontainer.json.
 #
 # The base image is pinned by digest, so the tag can never move underneath
 # you. Resolved 2026-08-16: eclipse-temurin 21.0.11_10-jdk-noble, published
