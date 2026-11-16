@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -79,6 +80,8 @@ public final class Keeper {
     private volatile Store.ReadBack readBack;
     private volatile long readBackNanos;
     private volatile List<Store.Peer> peers = Collections.emptyList();
+    // Every server name this process has seen live, so a node that has stopped since is still named.
+    private final Map<String, String> seenNames = new ConcurrentHashMap<>();
     private volatile long lastTickNanos;
 
     // Touched only on the keeper's thread.
@@ -486,6 +489,9 @@ public final class Keeper {
         peers = Collections.unmodifiableList(live);
 
         for (Store.Peer peer : live) {
+            if (peer.nodeName != null) {
+                seenNames.put(peer.nodeId, peer.nodeName);
+            }
             if (peer.protocol != Node.PROTOCOL && state == State.RUNNING) {
                 state = State.DECLINED;
                 faults.raise(Code.PC107, null, messages.pc107Peer(peerName(peer), peer.protocol));
@@ -664,7 +670,10 @@ public final class Keeper {
         return peers;
     }
 
-    /** Returns the name an operator recognizes for a node, its server name or else its server ID. */
+    /**
+     * Returns the name an operator recognizes for a node: its server name, as this process last saw the
+     * node live, or else its server ID.
+     */
     public String ownerName(String nodeId) {
         if (nodeId.equals(node.id)) {
             return node.name;
@@ -674,7 +683,7 @@ public final class Keeper {
                 return peerName(peer);
             }
         }
-        return nodeId;
+        return seenNames.getOrDefault(nodeId, nodeId);
     }
 
     private static String peerName(Store.Peer peer) {

@@ -577,6 +577,17 @@ class KeeperTest {
     }
 
     @Test
+    void aPeerThatHasStoppedIsStillNamedByTheServerNameThisNodeLastSaw() {
+        store.peers.add(new Store.Peer("srv-b", "node-b", Node.PROTOCOL));
+        keeper.tick();
+        store.peers.clear();
+        nextTick();
+
+        assertEquals("node-b", keeper.ownerName("srv-b"));
+        assertEquals("srv-c", keeper.ownerName("srv-c"));
+    }
+
+    @Test
     void pc119FiresAfterTwoMismatchedTicksClearsAfterTwoMatchedOnesAndTheNodeStaysRunning() {
         store.behavior = statement -> {
             if (statement.equals("upsertNode")) {
