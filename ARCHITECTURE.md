@@ -71,7 +71,8 @@ holds the deploy hook, the lanes and the sweep. `Gate` keeps a deploying channel
 
 **Architecture invariant:** the only engine calls that change anything start or stop a channel's
 source connector, plus the gate's write of a deploying copy's initial state. `Engine` has no call
-that touches a message, a file or a row.
+that touches a message, a file or a row:
+`OieEngineTest.theEngineSeamOffersOnlyReadsAndSourceStartsAndStops`.
 
 ### `api/`
 
