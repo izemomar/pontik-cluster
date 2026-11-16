@@ -438,22 +438,97 @@ on the node is.
 ## Limitations
 
 > [!WARNING]
-> Pontik Cluster reduces duplicate polling, but it cannot rule it out entirely. A poll
-> that is already in flight when a node loses its lease can finish after the new owner
-> has started. Two nodes can also poll at the same time if a node freezes for several
-> seconds at the wrong moment - during a long garbage-collection pause, for example -
-> or if its clock runs much slower than the database's.
+> **A message can be read twice when a node loses its database.** A node that loses its
+> connection to the database stops reading before its lease runs out. That leaves the
+> message it is working on at least six seconds to finish before any other node can take
+> over. A message that takes longer may be read again by the new owner. If some of your
+> messages take more than a few seconds to process, please make sure the systems you
+> deliver them to can recognize a message they have already received.
 
-Closing that window would require the polled system itself to turn away a node that has
-lost its lease, and you cannot ask that of an SFTP server or a partner's database. If
-you need each message processed exactly once, you should make sure your destinations
-are idempotent, which means that receiving the same message twice has the same effect
-as receiving it once.
+> [!WARNING]
+> **Starting a protected channel on the wrong node.** If you start or resume a protected
+> channel on a node that does not own it, we stop it again straight away. It can still
+> read a few messages first, and more on a busy server. Please start protected channels
+> on the node that owns them. [Checking Status](#checking-status) shows which node that
+> is.
 
-Channels that listen depend on each message reaching one node. A JMS Listener that
-subscribes to a topic can receive every message on every node, and we refuse to protect
-it, because it does not poll. If you can, you should have it read from a queue instead,
-since a queue hands each message to one node.
+> [!WARNING]
+> **A database failover to an asynchronous standby server.** If your
+> PostgreSQL database fails over to an asynchronous standby server, that server may be
+> missing the last lease changes. For a short time, usually a few seconds and at most
+> about 24 seconds, two nodes may then read the same channel. The same failover can also
+> lose messages the engine has already saved. If you need either guarantee to hold
+> through a failover, please use synchronous replication.
+
+**Channels that send messages into a protected channel.** A protected channel accepts
+messages only on the node that owns it. On every other node, messages that another
+channel sends into it fail, wait in a queue, or are lost, depending on how they are
+sent. We refuse to protect a channel that a Channel Writer names. We cannot see a target
+that is chosen while a channel runs, or one that a script sends to. Please do not
+protect a channel that other channels send messages to.
+
+**Readers that change data as they read.** Some readers change what they read, such as a
+query that marks rows as taken or a script that deletes the files it fetched. If we stop
+such a reader partway through, the data it has already taken may never be delivered. We
+refuse to protect these readers unless you tell us they can safely be read twice. We
+judge a query by its text, setting comments and quoted text aside, so a query that
+changes rows through a database function looks to us like a plain read, and PostgreSQL's
+`E'...'` and `$$...$$` strings can make us judge a query wrongly. Please keep the query
+of a protected Database Reader to one plain `SELECT`.
+
+**A node that freezes.** If a node freezes for about 20 seconds or more, another node
+may take over its channels. This can happen during a very long garbage collection pause,
+or while its virtual machine is suspended. When the frozen node resumes, it can read
+briefly before it notices and stops. The same can happen if a node's clock runs much
+slower than the database's, because the node then stops polling later than it should.
+Please keep your engine's garbage collection pauses well under 20 seconds.
+
+**Work outside the source.** We control only when a protected channel's source reads.
+Everything else the channel does still runs on every node where it is deployed: its
+deploy and undeploy scripts, your global scripts, and any timers your scripts start.
+Values your scripts keep in memory, such as the global channel map, stay on the node
+that wrote them and do not follow the channel to its new owner. If we stop a File Reader
+partway through a batch, that batch never marks its last file as complete
+(`pollComplete`).
+
+**Exactly-once delivery.** We keep more than one node from reading a channel at the same
+time. We do not promise that each message is delivered exactly once. The cases above can
+still produce a duplicate, and so can a node that crashes partway through a message,
+just as a single engine can when it restarts. Closing those windows would require the
+polled system itself to turn away a node that has lost its lease, and you cannot ask
+that of an SFTP server or a partner's database. If a duplicate would cause harm, you
+should make your destinations idempotent, which means that receiving the same message
+twice has the same effect as receiving it once.
+
+**Handover takes time, and the timings are fixed.** When a node shuts down cleanly, the
+other nodes take over its channels within about 12 seconds after its engine has stopped;
+stopping the engine waits for each channel's current poll to finish. When you undeploy a
+channel on its owner, another node takes it over within about 42 seconds, usually about
+30. When a node fails, it takes about 55 seconds. When you restart every node at once,
+each protected channel reads again about 20 seconds after it is deployed. After the
+takeover, each channel reads at its next scheduled poll. You cannot change these
+timings.
+
+**Channels that poll at a time of day.** A channel that polls at a set time, or on a
+cron schedule, reads at its next scheduled time after a takeover. If the takeover
+happens in the minutes before that time, the next read is the following day. If a daily
+poll must not be missed, please avoid maintenance on its owner just before it, or poll
+on an interval instead.
+
+**Long global deploy scripts.** When you redeploy channels, we keep each one on its node
+while the engine works through the redeploy. If your global deploy script runs for more
+than about 10 seconds, a Redeploy All can still move some channels to other nodes.
+Nothing is read twice; the channels then run on their new owners.
+
+**Channels stay where they are.** We do not move channels around to balance the load. A
+node that rejoins takes over a channel only when another node gives it up, so over time
+a few nodes may own most channels. [Moving a Channel](#moving-a-channel) explains how to
+move one.
+
+**Channels that listen.** Channels that listen depend on each message reaching one node.
+A JMS Listener that subscribes to a topic can receive every message on every node, and
+we refuse to protect it, because it does not poll. If you can, you should have it read
+from a queue instead, since a queue hands each message to one node.
 
 Pontik Cluster is provided as-is, without warranty of any kind, and no fitness for any
 purpose, clinical or otherwise, is asserted. It is not a medical device, is not
