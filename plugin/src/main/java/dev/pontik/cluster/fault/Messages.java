@@ -201,7 +201,8 @@ public final class Messages {
     public String pc118(String cause) {
         return "This node could not start this channel after taking it over" + because(cause) + "; it released the "
             + "lease and stays out for " + alarmSeconds + " seconds while another node takes over. Please check "
-            + "this node's access to the channel's source: the share, the database or the script.";
+            + "this node's access to the channel's source: the share, the database or the script. If the channel was "
+            + "halted on this node since its engine last started, please restart the engine.";
     }
 
     public String pc119(String otherInstance) {

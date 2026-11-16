@@ -356,6 +356,12 @@ that node's engine instead, the stop is forgotten, and the new owner starts the 
 just as a single engine starts it again after a restart. A redeploy forgets your stops
 too, as the engine always does.
 
+After you halt a channel on a node, please restart that node's engine before you start
+the channel there again. Open Integration Engine™ 4.6.0 keeps the halted poll's job
+until the engine restarts, so a start of the channel on that node can fail, even after
+a redeploy. If that node takes the channel over first, it raises PC-118 and gives the
+channel up again.
+
 Please start or resume a protected channel on its owner. If you do it on any other node,
 we stop the channel there again straight away. [Checking Status](#checking-status) shows
 which node owns it.
@@ -432,7 +438,7 @@ on the node is.
 | <a name="pc-114"></a>PC-114 | We refused the channel: its read may change data, and it is not declared rereadable. | Declare it rereadable if a read we stop partway leaves its data in place, or keep the channel `unmanaged`. |
 | <a name="pc-115"></a>PC-115 | We refused the channel: a Channel Writer sends messages into it, and they would fail on every node but the owner. | Route those messages another way, or keep the channel `unmanaged`. |
 | <a name="pc-116"></a>PC-116 | This node cannot reach the engine's running copy of the channel, or of any channel, so it cannot keep it Paused, and the channel runs as configured there. | Redeploy the channel, or restart the node when every channel is affected. If it happens again, please report it with the engine log. |
-| <a name="pc-118"></a>PC-118 | This node could not start the channel after taking it over. It gave the lease up and stays out for 90 seconds while another node takes over. | Check this node's access to the channel's source: the share, the database or the script. |
+| <a name="pc-118"></a>PC-118 | This node could not start the channel after taking it over. It gave the lease up and stays out for 90 seconds while another node takes over. | Check this node's access to the channel's source: the share, the database or the script. If the channel was halted on this node since its engine last started, restart the engine. |
 | <a name="pc-119"></a>PC-119 | Another process uses this node's server ID, so leases cannot tell the two apart, and every channel on the node is reported `unprotected`. | Give this node its own server ID: stop it, delete `appdata/server.id`, and start it. |
 
 ## Limitations

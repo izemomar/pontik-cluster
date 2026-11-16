@@ -113,10 +113,12 @@ class MessagesTest {
             + "again, please report it with the engine log.", m.pc116(true));
         assertEquals("This node could not start this channel after taking it over (STOPPED); it released the lease "
             + "and stays out for 90 seconds while another node takes over. Please check this node's access to the "
-            + "channel's source: the share, the database or the script.", m.pc118("STOPPED"));
+            + "channel's source: the share, the database or the script. If the channel was halted on this node since "
+            + "its engine last started, please restart the engine.", m.pc118("STOPPED"));
         assertEquals("This node could not start this channel after taking it over; it released the lease and stays "
             + "out for 90 seconds while another node takes over. Please check this node's access to the channel's "
-            + "source: the share, the database or the script.", m.pc118(null));
+            + "source: the share, the database or the script. If the channel was halted on this node since its "
+            + "engine last started, please restart the engine.", m.pc118(null));
         assertEquals("Another process uses this server ID (instance 0f3c), so leases cannot tell the two apart; "
             + "every channel on this node is reported unprotected. Please give this node its own server ID: stop "
             + "it, delete appdata/server.id, start it.", m.pc119("0f3c"));
