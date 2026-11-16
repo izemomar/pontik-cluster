@@ -594,6 +594,14 @@ that wrote them and do not follow the channel to its new owner. If we stop a Fil
 partway through a batch, that batch never marks its last file as complete
 (`pollComplete`).
 
+**Messages waiting in a destination queue.** The engine keeps each destination's queue
+with the node that queued the messages. When a node fails, the messages waiting in its
+queues stay there until that node starts again with the same server ID, while the new
+owner sends the channel's new messages, so a destination can receive them out of
+order. No other node sends them. If a destination needs its messages in order, please
+do not queue messages to it from a protected channel, and bring a failed node back with
+its own `appdata`, so it can send what it holds.
+
 **Exactly-once delivery.** We keep more than one node from reading a channel at the same
 time. We do not promise that each message is delivered exactly once. The cases above can
 still produce a duplicate, and so can a node that crashes partway through a message,
