@@ -2,7 +2,12 @@
 package dev.pontik.cluster.fault;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import org.junit.jupiter.api.Test;
 
 class MessagesTest {
@@ -115,5 +120,15 @@ class MessagesTest {
         assertEquals("Another process uses this server ID (instance 0f3c), so leases cannot tell the two apart; "
             + "every channel on this node is reported unprotected. Please give this node its own server ID: stop "
             + "it, delete appdata/server.id, start it.", m.pc119("0f3c"));
+    }
+
+    @Test
+    void theReadmeHasAFaultCodesRowWithAnAnchorForEveryCode() throws IOException {
+        String readme = new String(Files.readAllBytes(Paths.get("../README.md")), StandardCharsets.UTF_8);
+
+        for (Code code : Code.values()) {
+            String label = code.label();
+            assertTrue(readme.contains("| <a name=\"" + label.toLowerCase() + "\"></a>" + label + " | "), label);
+        }
     }
 }

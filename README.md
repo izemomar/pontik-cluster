@@ -408,6 +408,33 @@ share that stopped answering, or a channel may be stuck starting or stopping, wh
 also holds back the handover of channels you undeploy there. Please kill that node's
 engine process. The other nodes take its channels over within about a minute.
 
+## Fault Codes
+
+A fault code fires once, when something needs you: one line in the engine's log, which
+starts with `[PONTIK-CLUSTER]` and the code, and one engine error event. It clears with
+one INFO line once it no longer applies. PC-103 and PC-105 are warnings; every other
+code is an error. While PC-104 to PC-107, PC-112 to PC-116 or PC-119 fires, the
+channel is reported as `unprotected`, and for PC-107, PC-113 and PC-119, every channel
+on the node is.
+
+| Code | What Happened | What You Should Do |
+| --- | --- | --- |
+| <a name="pc-101"></a>PC-101 | This node held the channel's lease, but the database then named another owner, or the node's release matched no row. It stopped the channel's source at once. | Check the channel's destinations for a message delivered twice around the time the message names. If it happens again, check the database clock and whether anything else writes to `pcl_lease`. |
+| <a name="pc-102"></a>PC-102 | No lease renewal was confirmed for 24 seconds, so this node stopped every protected source it polled, and the other nodes take the channels over. | Check this node's connection to the database. |
+| <a name="pc-103"></a>PC-103 | No node has owned the channel for 90 seconds. | If the channel is stopped on this node, start it on a node where it is deployed. Either way, check that every node reaches the database. |
+| <a name="pc-104"></a>PC-104 | This node could not stop the channel's source although another node owns it, so both may poll. | Stop the channel by hand on this node. If it does not stop, Halt it, which can deliver the message in flight twice. |
+| <a name="pc-105"></a>PC-105 | Something keeps starting the channel on this node although another node owns it. | Find the script or monitor that starts it, and start protected channels on the node that owns them. |
+| <a name="pc-106"></a>PC-106 | We refused the channel: Poll Once on Start is on, or its post-processing runs once after all messages. | Turn the setting off, or keep the channel `unmanaged`. |
+| <a name="pc-107"></a>PC-107 | The plugin is off on this node, because it could not create or use its tables, or could not start. Every channel on the node runs as it does without the plugin. | Do what the message says: run the schema script or its GRANT lines from [Installation](#installation), convert the column it names, check the node's connection to the database, or install the same plugin version on every node. Then restart the node. |
+| <a name="pc-110"></a>PC-110 | This node has stopped starting lease renewals. It stops each source it polls before that channel's lease runs out, and the other nodes take the channels over. | Take a thread dump of this node, then restart it. |
+| <a name="pc-112"></a>PC-112 | We refused the channel: its source connector is not a File Reader, a Database Reader or a JavaScript Reader. | Keep the channel `unmanaged`. |
+| <a name="pc-113"></a>PC-113 | The engine's database is not PostgreSQL, so the plugin does nothing on this node. | Uninstall the plugin, or move the engine to PostgreSQL. |
+| <a name="pc-114"></a>PC-114 | We refused the channel: its read may change data, and it is not declared rereadable. | Declare it rereadable if a read we stop partway leaves its data in place, or keep the channel `unmanaged`. |
+| <a name="pc-115"></a>PC-115 | We refused the channel: a Channel Writer sends messages into it, and they would fail on every node but the owner. | Route those messages another way, or keep the channel `unmanaged`. |
+| <a name="pc-116"></a>PC-116 | This node cannot reach the engine's running copy of the channel, or of any channel, so it cannot keep it Paused, and the channel runs as configured there. | Redeploy the channel, or restart the node when every channel is affected. If it happens again, please report it with the engine log. |
+| <a name="pc-118"></a>PC-118 | This node could not start the channel after taking it over. It gave the lease up and stays out for 90 seconds while another node takes over. | Check this node's access to the channel's source: the share, the database or the script. |
+| <a name="pc-119"></a>PC-119 | Another process uses this node's server ID, so leases cannot tell the two apart, and every channel on the node is reported `unprotected`. | Give this node its own server ID: stop it, delete `appdata/server.id`, and start it. |
+
 ## Limitations
 
 > [!WARNING]
