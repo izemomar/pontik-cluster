@@ -6,7 +6,12 @@ import static dev.pontik.cluster.lease.Pg.restricted;
 import static dev.pontik.cluster.lease.Pg.restrictedRole;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -17,6 +22,8 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -25,6 +32,10 @@ class BootstrapTest {
     private static final String GRANT =
         "GRANT SELECT, INSERT, UPDATE ON pcl_node, pcl_lease, pcl_channel_config TO restricted";
     private static final String GRANT_DELETE = "GRANT DELETE ON pcl_channel_config TO restricted";
+
+    // The README's schema script is its sql block that opens with the comment on the time columns.
+    private static final Pattern SCHEMA_SCRIPT =
+        Pattern.compile("```sql\n(-- Keep timestamp without time zone.*?)```", Pattern.DOTALL);
 
     @BeforeEach
     void emptyDatabase() throws SQLException {
@@ -96,6 +107,18 @@ class BootstrapTest {
     }
 
     @Test
+    void theReadmeSchemaScriptMakesTheSameTablesAndLetsAUserWithoutCreateStart() throws Exception {
+        bootstrap(Pg.settings());
+        String made = columns();
+        Pg.reset();
+
+        Pg.execute(readmeSchemaScript().replace("engine_user", "restricted"));
+
+        assertEquals(made, columns());
+        bootstrap(restricted());
+    }
+
+    @Test
     void aTimestamptzOrMissingColumnIsRefusedAndTimestamp3Passes() throws SQLException {
         bootstrap(Pg.settings());
 
@@ -129,14 +152,23 @@ class BootstrapTest {
         }
     }
 
+    private static String readmeSchemaScript() throws IOException {
+        String readme = new String(Files.readAllBytes(Paths.get("../README.md")), StandardCharsets.UTF_8);
+        Matcher m = SCHEMA_SCRIPT.matcher(readme);
+        assertTrue(m.find(), "README.md has no schema script");
+        return m.group(1);
+    }
+
     private static String columns() throws SQLException {
         StringBuilder all = new StringBuilder();
         try (Connection c = Pg.admin(); Statement s = c.createStatement();
-                ResultSet rs = s.executeQuery("SELECT table_name, column_name, data_type, column_default "
+                ResultSet rs = s.executeQuery("SELECT table_name, column_name, data_type, column_default, "
+                    + "character_maximum_length, is_nullable "
                     + "FROM information_schema.columns WHERE table_name LIKE 'pcl%' ORDER BY 1, 2")) {
             while (rs.next()) {
                 all.append(rs.getString(1)).append('.').append(rs.getString(2)).append(' ')
-                    .append(rs.getString(3)).append(' ').append(rs.getString(4)).append('\n');
+                    .append(rs.getString(3)).append(' ').append(rs.getString(4)).append(' ')
+                    .append(rs.getString(5)).append(' ').append(rs.getString(6)).append('\n');
             }
         }
         return all.toString();

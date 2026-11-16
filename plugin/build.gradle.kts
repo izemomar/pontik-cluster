@@ -278,5 +278,7 @@ tasks.assemble {
 tasks.test {
     useJUnitPlatform()
     inputs.files(pluginZip)
+    // Two tests read the README, so an edit to it runs them again.
+    inputs.file(rootProject.file("README.md"))
     systemProperty("pontik.zip", pluginZip.get().archiveFile.get().asFile.path)
 }

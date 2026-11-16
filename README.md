@@ -54,7 +54,8 @@ on standby takes the channel over. When a node fails or loses its database, the
 channel fails over instead. The other nodes wait for the lease to run out, and then one
 of them takes the channel over. Either way, the new owner polls at the channel's next
 scheduled poll. There is no automatic failback: when a node comes back, the channels it
-gave up stay with their new owners.
+gave up stay with their new owners. After you restart every node at once, each
+protected channel polls again about 20 seconds after it is deployed.
 
 <picture>
   <source media="(max-width: 767px) and (prefers-reduced-motion: reduce) and (prefers-color-scheme:dark)" srcset="art/pontik-cluster-failover-narrow-dark.png 2x">
@@ -99,6 +100,116 @@ Pontik Cluster runs on two or more Open Integration Engine™ 4.6.0 servers - we
 one a node - that share one PostgreSQL engine database. It adds no server and no
 network path between your nodes: each node opens two more connections to the database
 it already uses.
+
+Before you install it, please make sure that:
+
+- Every node runs Open Integration Engine™ 4.6.0 exactly, and every node runs the
+  plugin, at the same version. A node without the plugin polls every channel, whatever
+  its mode.
+- Each node keeps its own `appdata` and `conf` directories from one start to the next,
+  so it keeps its own server ID and its keystore passwords, and the
+  `server.id.ephemeral` setting stays off.
+- The database's clock runs continuously and is kept on time by NTP, and so is the clock
+  of its standby server, if you run one.
+- Each node reaches the database in well under a second, as it does on the same network
+  or in the same cloud region.
+- Each node connects to PostgreSQL directly, not through PgBouncer or another connection
+  pooler.
+- Nothing but the plugin locks rows in its three tables.
+- The engine's database user may create tables, or your database administrator runs the
+  schema script from [Installation](#installation) first.
+- Every channel you protect is deployed on every node that may take it over. A channel
+  deployed on only one node has no failover, and no other node can warn you when that
+  node fails.
+- Every node reaches the same source - the same share, directory, database or endpoint -
+  because the new owner reads from its own side.
+- Each node can run every protected channel on its own, because after a restart one
+  node may own them all.
+
+## Installation
+
+You install Pontik Cluster like any other Open Integration Engine™ extension, from its
+zip, `pontik-cluster-0.1.0-alpha.zip`. You may build the zip yourself: open this
+repository in its devcontainer, as [CONTRIBUTING.md](CONTRIBUTING.md) describes, and run
+`./gradlew pluginZip`. The zip lands in `plugin/build/distributions/`.
+
+Please repeat these steps on every node. First, open Extensions in the Administrator,
+choose the zip under Install Extension from File System, and click Install. Next,
+restart the engine on that node. Finally, check that the Extensions list on that node
+shows Pontik Cluster.
+
+At its first start, the plugin creates its three tables in the engine's database:
+`pcl_node`, `pcl_lease` and `pcl_channel_config`. If the engine's database user may not
+create tables, the node raises fault code PC-107 instead and runs every channel as it
+does without the plugin. In that case, please ask your database administrator to run
+this schema script once, in the schema your engine's own tables use, replacing
+`engine_user` with the user your engine connects as, and then restart the node:
+
+```sql
+-- Keep timestamp without time zone: the plugin compares these columns
+-- with the database clock in UTC and refuses any other type.
+
+CREATE TABLE pcl_node (
+    node_id varchar(255) PRIMARY KEY,
+    node_name varchar(255) NULL,
+    instance_id varchar(36) NOT NULL,
+    protocol_version int NOT NULL,
+    plugin_version varchar(32) NOT NULL,
+    last_seen_at timestamp NOT NULL
+);
+
+CREATE TABLE pcl_lease (
+    channel_id varchar(36) PRIMARY KEY,
+    owner_node_id varchar(255) NULL,
+    epoch bigint NOT NULL DEFAULT 0,
+    lease_expires_at timestamp NOT NULL,
+    acquired_at timestamp NULL,
+    stopped boolean NOT NULL DEFAULT false
+);
+
+CREATE TABLE pcl_channel_config (
+    channel_id varchar(36) PRIMARY KEY,
+    mode varchar(16) NOT NULL,
+    rereadable boolean NOT NULL DEFAULT false,
+    updated_at timestamp NOT NULL,
+    updated_by varchar(255) NULL
+);
+
+GRANT SELECT, INSERT, UPDATE ON pcl_node, pcl_lease, pcl_channel_config TO engine_user;
+GRANT DELETE ON pcl_channel_config TO engine_user;
+```
+
+> [!NOTE]
+> If a time column was created as `timestamp with time zone`, the node raises PC-107 and
+> names the column. You may convert it in place, keeping its values in UTC, with
+> `ALTER TABLE pcl_lease ALTER COLUMN lease_expires_at TYPE timestamp USING lease_expires_at AT TIME ZONE 'UTC';`,
+> using the table and column the message names.
+
+> [!WARNING]
+> Please keep every node on Open Integration Engine™ 4.6.0 while you use this release.
+> The engine loads an extension only on the exact engine version the extension names,
+> and it skips one that does not match with a single line in its log. A node on another
+> engine version then polls every protected channel, while the other nodes keep
+> reporting it `protected`. After you upgrade the engine or the plugin, please check the
+> Extensions list on every node.
+
+## Uninstalling
+
+If you remove Pontik Cluster, please hand every protected channel back first, so each
+node starts polling again because you decided it, not because of the order of your
+uninstalls.
+
+First, set the mode of every protected channel to `unmanaged`, as
+[Protecting a Channel](#protecting-a-channel) shows, and wait 20 seconds. Next, on each
+node in turn, open Extensions in the Administrator, click Uninstall on Pontik Cluster,
+and restart the engine. Finally, once every node is done, you may drop the plugin's
+tables:
+
+```sql
+DROP TABLE pcl_lease, pcl_channel_config, pcl_node;
+```
+
+Your channels then run as they do without the plugin.
 
 ## Limitations
 
