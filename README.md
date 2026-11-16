@@ -259,6 +259,90 @@ Once you protect a channel, your nodes settle on one owner within about 20 secon
 Until then, a node that has not caught up may still poll it, and that node reports the
 channel as `unprotected`.
 
+## Checking Status
+
+Each node reports what it sees, so please ask each node. Both calls answer from the
+node's memory and never touch the database, so they answer even while the database is
+down.
+
+### Each Node's Channels
+
+`GET /api/extensions/pontik-cluster/channels` lists every channel deployed on the node,
+protected or not, and every channel with a mode:
+
+```shell
+curl -u admin -H 'X-Requested-With: OpenAPI' -H 'Accept: application/json' \
+  'https://engine-1.example.org:8443/api/extensions/pontik-cluster/channels'
+```
+
+The engine shapes its JSON after its XML, as it does on every call: a list of one item
+comes back as an object, an empty list as `null`, and a field without a value is left
+out. For each channel:
+
+- `status` is `protected`, `unprotected` or `unmanaged`, and `reason` says why.
+- `codes` lists the fault codes firing for the channel.
+- `owner` and `ownerName` name the node that holds the lease, and `epoch` is a number
+  that goes up each time a node takes the lease.
+- `heldSince`, `leaseExpiresAt` and `asOf` are the database's times, in UTC.
+- `readBackAgeMs` is how long ago this node last read the lease tables. It stays at
+  about 10 seconds or less while the node reaches the database, and grows while it
+  cannot.
+- `thisNode.role` is `owner`, `standby`, or `none` for an `unmanaged` channel.
+
+While the plugin is off on a node, this call answers `503` with the node's own view
+below as its body, so a monitor never reads an empty list as all clear. Please alert on
+that answer too.
+
+### This Node
+
+`GET /api/extensions/pontik-cluster/local` describes the node itself: whether the plugin
+runs there (`state` is `RUNNING`, `OFF` or `DECLINED`), its fixed timing, the other
+nodes it counts as live, the leases it holds with how long it may still poll under each,
+and every fault code firing on it.
+
+### The Whole Cluster
+
+For one view of every protected channel, you may run this read-only query against the
+engine's database. It shows which node owns each channel, and `held` is false for a
+lease nobody holds:
+
+```sql
+SELECT l.channel_id, n.node_name AS owner, l.epoch, l.stopped,
+       l.owner_node_id IS NOT NULL
+         AND l.lease_expires_at > clock_timestamp() AT TIME ZONE 'UTC' AS held
+  FROM pcl_lease l
+  JOIN pcl_channel_config c ON c.channel_id = l.channel_id
+  LEFT JOIN pcl_node n ON n.node_id = l.owner_node_id
+ ORDER BY l.channel_id;
+```
+
+> [!NOTE]
+> On every node except its owner, a protected channel shows as Paused, with its
+> source stopped. That is how we keep the other nodes from reading. If your monitoring
+> alerts on channels that are not Started, please leave protected channels out of that
+> check and use our `GET /channels` call instead. Each node reports whether the channel
+> is `protected` or `unprotected` there, and which node owns it.
+
+### Alerts and the Engine Log
+
+Every fault code is written to the engine's log with the tag `[PONTIK-CLUSTER]` and sent
+to the engine as an error event, so you may create an engine alert for any error whose
+text matches `\[PONTIK-CLUSTER\]`. Each node loads its alerts when it starts, so please
+restart each node after you create the alert. We also recommend alerting on PC-102, and
+on a `readBackAgeMs` above 30000 on any node.
+
+Pontik Cluster logs under `dev.pontik.cluster`, at INFO even though the engine logs only
+errors by default: one line when it starts, and one line each time a channel changes
+hands. If you would rather keep only its warnings and errors, you may add these lines to
+the node's `conf/log4j2.properties` and restart the node:
+
+```properties
+logger.pontik.name = dev.pontik.cluster
+logger.pontik.level = WARN
+```
+
+Its fault codes still reach your alerts, because each one is also an error event.
+
 ## Limitations
 
 > [!WARNING]
