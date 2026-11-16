@@ -275,6 +275,59 @@ curl -u admin -H 'X-Requested-With: OpenAPI' -H 'Accept: application/json' \
   'https://engine-1.example.org:8443/api/extensions/pontik-cluster/channels'
 ```
 
+For example, a node answers like this for a channel it owns and for one you have not
+protected:
+
+```json
+{
+  "list": {
+    "pontikChannel": [
+      {
+        "channelId": "6f1d3c2a-0b5e-4c7d-9a21-7c0d00004001",
+        "name": "inbox-reader",
+        "sourceType": "File Reader",
+        "mode": "single-owner",
+        "rereadable": false,
+        "status": "protected",
+        "reason": "this node holds the lease",
+        "codes": null,
+        "owner": "b48de3b8-658c-4f95-ad20-172a0abddc0a",
+        "ownerName": "node-1",
+        "epoch": 1,
+        "heldSince": "2026-11-16T10:56:31.897863Z",
+        "leaseExpiresAt": "2026-11-16T10:58:10.000261Z",
+        "stopped": false,
+        "asOf": "2026-11-16T10:57:40.002195Z",
+        "readBackAgeMs": 7075,
+        "thisNode": {
+          "role": "owner",
+          "sourceState": "STARTED",
+          "stoppedByUs": false,
+          "stoppedByOperator": false
+        }
+      },
+      {
+        "channelId": "6f1d3c2a-0b5e-4c7d-9a21-7c0d00004004",
+        "name": "adt-feed",
+        "sourceType": "JavaScript Reader",
+        "mode": "unmanaged",
+        "rereadable": false,
+        "status": "unmanaged",
+        "codes": null,
+        "asOf": "2026-11-16T10:57:40.002195Z",
+        "readBackAgeMs": 7075,
+        "thisNode": {
+          "role": "none",
+          "sourceState": "STARTED",
+          "stoppedByUs": false,
+          "stoppedByOperator": false
+        }
+      }
+    ]
+  }
+}
+```
+
 The engine shapes its JSON after its XML, as it does on every call: a list of one item
 comes back as an object, an empty list as `null`, and a field without a value is left
 out. For each channel:
@@ -298,7 +351,51 @@ that answer too.
 `GET /api/extensions/pontik-cluster/local` describes the node itself: whether the plugin
 runs there (`state` is `RUNNING`, `OFF` or `DECLINED`), its fixed timing, the other
 nodes it counts as live, the leases it holds with how long it may still poll under each,
-and every fault code firing on it.
+and every fault code firing on it:
+
+```json
+{
+  "pontikNode": {
+    "nodeId": "b48de3b8-658c-4f95-ad20-172a0abddc0a",
+    "nodeName": "node-1",
+    "instanceId": "7ad14a7f-190c-439f-884d-2359aba9004e",
+    "state": "RUNNING",
+    "gateAvailable": true,
+    "timing": {
+      "leaseMs": 30000,
+      "heartbeatMs": 10000,
+      "marginMs": 6000,
+      "jitterMs": 2000,
+      "tolerance": 2
+    },
+    "lastTickAgeMs": 7103,
+    "lastSweepAgeMs": 6981,
+    "engineBusy": false,
+    "peers": {
+      "pontikPeer": {
+        "nodeId": "dfc9ac2c-e35b-45ab-ac46-727cba73d20a",
+        "nodeName": "node-2",
+        "protocolVersion": 1
+      }
+    },
+    "leases": {
+      "pontikLease": [
+        {
+          "channelId": "6f1d3c2a-0b5e-4c7d-9a21-7c0d00004001",
+          "epoch": 1,
+          "validForMs": 16896
+        },
+        {
+          "channelId": "6f1d3c2a-0b5e-4c7d-9a21-7c0d00004220",
+          "epoch": 1,
+          "validForMs": 16896
+        }
+      ]
+    },
+    "faults": null
+  }
+}
+```
 
 ### The Whole Cluster
 
