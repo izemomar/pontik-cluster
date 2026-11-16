@@ -110,11 +110,13 @@ class BootstrapTest {
     void theReadmeSchemaScriptMakesTheSameTablesAndLetsAUserWithoutCreateStart() throws Exception {
         bootstrap(Pg.settings());
         String made = columns();
+        String keys = keys();
         Pg.reset();
 
         Pg.execute(readmeSchemaScript().replace("engine_user", "restricted"));
 
         assertEquals(made, columns());
+        assertEquals(keys, keys());
         bootstrap(restricted());
     }
 
@@ -169,6 +171,22 @@ class BootstrapTest {
                 all.append(rs.getString(1)).append('.').append(rs.getString(2)).append(' ')
                     .append(rs.getString(3)).append(' ').append(rs.getString(4)).append(' ')
                     .append(rs.getString(5)).append(' ').append(rs.getString(6)).append('\n');
+            }
+        }
+        return all.toString();
+    }
+
+    // Our upserts rely on these keys, and the bootstrap checks only columns, so a missing key would pass it.
+    private static String keys() throws SQLException {
+        StringBuilder all = new StringBuilder();
+        try (Connection c = Pg.admin(); Statement s = c.createStatement();
+                ResultSet rs = s.executeQuery("SELECT t.table_name, t.constraint_type, k.column_name "
+                    + "FROM information_schema.table_constraints t JOIN information_schema.key_column_usage k "
+                    + "ON k.constraint_name = t.constraint_name AND k.table_name = t.table_name "
+                    + "WHERE t.table_name LIKE 'pcl%' ORDER BY 1, 2, 3")) {
+            while (rs.next()) {
+                all.append(rs.getString(1)).append(' ').append(rs.getString(2)).append(' ')
+                    .append(rs.getString(3)).append('\n');
             }
         }
         return all.toString();
