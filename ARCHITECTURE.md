@@ -122,7 +122,7 @@ check that fails if it does.
   sweep is stale, and releases it after two idle sweeps:
   `KeeperTest.noReleaseWhileTheEngineIsBusyOrTheLatestSweepIsStale` and
   `KeeperTest.twoIdleSweepsThenATickReleaseTheLease`. A hand-back releases at once:
-  `KeeperTest.aLeaseIsReleasedOnlyOnceItsSourceIsStoppedExceptTheHandBacks`.
+  `KeeperTest.aHandBackReleasesAtTheNextTickWithoutWaitingForTheSourceToStop`.
 - **No epoch handed out twice,** even for a channel deleted and protected again:
   `JdbcStoreTest.aChannelDeletedAndProtectedAgainNeverHandsOutAnEpochTwice`.
 - **No start of a connector the operator stopped.** A hand-back restores only what we stopped:

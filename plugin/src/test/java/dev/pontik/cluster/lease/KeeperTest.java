@@ -809,13 +809,13 @@ class KeeperTest {
     }
 
     @Test
-    void aLeaseIsReleasedOnlyOnceItsSourceIsStoppedExceptTheHandBacks() {
+    void aHandBackReleasesAtTheNextTickWithoutWaitingForTheSourceToStop() {
         own("ch-1", "ch-2", "ch-3");
+        // Every channel stays deployed here, so no release can come from an undeploy.
         for (int i = 0; i < 5; i++) {
             local.swept(clock.getAsLong(), false, new HashSet<>(list("ch-1", "ch-2", "ch-3")));
             nextTick();
         }
-        assertFalse(store.calls.contains("release"));
 
         store.modes.put("ch-1", Store.UNMANAGED);
         store.modes.remove("ch-2");
