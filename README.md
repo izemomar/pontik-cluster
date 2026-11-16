@@ -343,6 +343,71 @@ logger.pontik.level = WARN
 
 Its fault codes still reach your alerts, because each one is also an error event.
 
+## Starting and Stopping Protected Channels
+
+Pontik Cluster respects how you set each channel up. A channel set to start Paused or
+Stopped starts that way on every node.
+
+When you Pause, Stop or Halt a protected channel on its owner, it stops everywhere: the
+owner keeps its lease, so no other node takes the channel over. The stop also outlasts
+a failure. If the owner fails or loses its database, another node takes the channel
+over and keeps it Paused until you resume it there. If you undeploy the channel or stop
+that node's engine instead, the stop is forgotten, and the new owner starts the channel,
+just as a single engine starts it again after a restart. A redeploy forgets your stops
+too, as the engine always does.
+
+Please start or resume a protected channel on its owner. If you do it on any other node,
+we stop the channel there again straight away. [Checking Status](#checking-status) shows
+which node owns it.
+
+Please do not stop a protected channel on a node that does not own it. That node can
+then never take the channel over, and its status says so. If that leaves the channel
+without anyone to poll it, we warn you with PC-103 after 90 seconds.
+
+A redeploy on the owner keeps the channel on that node. To move a channel to another
+node, please follow [Moving a Channel](#moving-a-channel).
+
+## Operating Procedures
+
+### Protecting a New Channel
+
+Please protect a new channel before you first deploy it, so that no node polls it
+before the nodes agree on its owner. First, save the channel. Next, set its mode to
+`single-owner` and wait 20 seconds. Finally, deploy it on every node that may take it
+over.
+
+### Moving a Channel
+
+First, undeploy the channel on its owner. Next, wait until `GET /channels` on another
+node names that node as the new owner. Finally, deploy the channel again on the node you
+undeployed it from, so that node is on standby for it again. A redeploy within a few
+seconds of the undeploy keeps the channel where it was, so please wait for the new owner
+first.
+
+### Restarting or Patching a Node
+
+First, stop the node's engine cleanly. The other nodes take its channels over within
+about 12 seconds after its engine has stopped. Next, patch or restart the node, keeping
+it on Open Integration Engine™ 4.6.0. Finally, start its engine again. The other nodes
+keep the channels they took over, and the restarted node is on standby for them. A
+channel you had stopped on it is started by its new owner, as a single engine starts it
+after a restart.
+
+### Protecting a Channel That Already Runs on One Node
+
+If you run active-passive today, with one node working and a standby you start by hand,
+you may move to active-active one channel at a time. First, set the channel's mode to
+`single-owner` and wait until `GET /channels` names its owner, the node that already
+polls it. Next, redeploy the channel on each other node where it shows as Stopped. That
+node then keeps it Paused, on standby, and can take it over.
+
+### Stopping a Node That Has Stopped Working
+
+A node can keep its leases while it no longer does its work: its poll may hang on a
+share that stopped answering, or a channel may be stuck starting or stopping, which
+also holds back the handover of channels you undeploy there. Please kill that node's
+engine process. The other nodes take its channels over within about a minute.
+
 ## Limitations
 
 > [!WARNING]
