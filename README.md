@@ -94,6 +94,10 @@ You always know where a `single-owner` channel stands. Each node reports it as e
 `protected` or `unprotected`, with the reason, and raises a fault code when you must
 act.
 
+If you would like to know how the code keeps these promises, please see
+[ARCHITECTURE.md](ARCHITECTURE.md). It walks through each part of the plugin and names
+the test or build check that fails if a rule breaks.
+
 ## Requirements
 
 Pontik Cluster runs on two or more Open Integration Engine™ 4.6.0 servers - we call each
