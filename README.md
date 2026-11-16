@@ -211,6 +211,54 @@ DROP TABLE pcl_lease, pcl_channel_config, pcl_node;
 
 Your channels then run as they do without the plugin.
 
+## Protecting a Channel
+
+You protect a channel by setting its mode to `single-owner` through our REST call, and
+hand it back by setting it to `unmanaged`. You may call it on any node; every node picks
+the change up within about 10 seconds:
+
+```
+PUT /api/extensions/pontik-cluster/channels/{channelId}/mode?mode=single-owner
+```
+
+For example, with curl:
+
+```shell
+curl -X PUT -u admin -H 'X-Requested-With: OpenAPI' \
+  'https://engine-1.example.org:8443/api/extensions/pontik-cluster/channels/CHANNEL_ID/mode?mode=single-owner'
+```
+
+curl asks for the user's password. The examples assume that the machine you run curl
+on trusts your engine's certificate. A successful call answers `204 No Content`. On a
+stock engine every user who may log in may also make this call; its permission, Set
+cluster mode, matters only if you run an extension that restricts permissions.
+
+We check the saved channel before we change anything, and we refuse a channel we cannot
+protect with `422` and the fault code that says why, in plain text:
+
+| Code | We Refuse the Channel When | What You May Do |
+| --- | --- | --- |
+| PC-106 | Poll Once on Start is on, or the Database Reader runs its post-processing once after all messages | Turn the setting off, or keep the channel `unmanaged` |
+| PC-112 | Its source connector is not a File Reader, a Database Reader or a JavaScript Reader | Keep the channel `unmanaged` |
+| PC-114 | Its read may change data - a JavaScript Reader, a Database Reader with Use JavaScript set to Yes, or a query that writes - and you have not declared it rereadable | Declare it rereadable if that is safe, or keep it `unmanaged` |
+| PC-115 | A Channel Writer sends messages into it | Route those messages another way, or keep the channel `unmanaged` |
+
+A channel is rereadable when a read we stop partway leaves its data in place to be read
+again, such as a script that only reads files and never deletes them. You declare it in
+the same call:
+
+```
+PUT /api/extensions/pontik-cluster/channels/{channelId}/mode?mode=single-owner&rereadable=true
+```
+
+The call also answers `400` for any other mode, `404` for a channel that does not exist,
+and `503` while the plugin is off on that node. A change the database refuses twice
+answers `500`, with the database's SQLState.
+
+Once you protect a channel, your nodes settle on one owner within about 20 seconds.
+Until then, a node that has not caught up may still poll it, and that node reports the
+channel as `unprotected`.
+
 ## Limitations
 
 > [!WARNING]
