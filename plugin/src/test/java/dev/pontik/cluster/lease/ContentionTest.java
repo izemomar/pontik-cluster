@@ -10,6 +10,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import org.junit.jupiter.api.Test;
 
@@ -36,7 +37,8 @@ class ContentionTest {
                 try (Link link = new Link(Pg.keeper())) {
                     Store store = new JdbcStore(link, node, 0);
                     for (int round = 0; round < ROUNDS; round++) {
-                        together.await();
+                        // A racer that fails never arrives here, so the others time out instead of hanging.
+                        together.await(60, TimeUnit.SECONDS);
                         winners.addAndGet(round, acquire(store, "ch-" + round));
                     }
                 }
