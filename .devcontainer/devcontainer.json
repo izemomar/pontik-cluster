@@ -1,34 +1,79 @@
+// SPDX-License-Identifier: MPL-2.0
+
 {
   "name": "pontik-cluster",
 
+  // --------------------------------------------------------------------------
+  // Image
+  // --------------------------------------------------------------------------
+  //
   // The build context is the repository root, because the image copies the Gradle
-  // wrapper from it to warm the distribution. The .dockerignore file keeps build
-  // output and engine jars out of the context.
+  // wrapper from it to warm the distribution. The .dockerignore file leaves
+  // everything else out of the context.
+  //
   "build": {
     "dockerfile": "Dockerfile",
     "context": ".."
   },
 
+  // --------------------------------------------------------------------------
+  // Workspace
+  // --------------------------------------------------------------------------
+  //
+  // Your checkout is mounted at /workspace, and the container's terminal
+  // opens there.
+  //
   "workspaceFolder": "/workspace",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
 
+  // --------------------------------------------------------------------------
+  // Mounts
+  // --------------------------------------------------------------------------
+  //
   // We mount two things. The first is your host's Docker socket, so test containers
   // run beside this one on the host daemon. Keep in mind that any bind-mount path you
   // pass to Compose must therefore be a HOST path. The second is a named volume for
   // the Gradle home, so your resolved dependencies survive a container rebuild.
+  //
   "mounts": [
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
     "source=pontik-cluster-gradle-home,target=/opt/gradle-home,type=volume"
   ],
 
+  // --------------------------------------------------------------------------
+  // Test Containers
+  // --------------------------------------------------------------------------
+  //
+  // Test containers publish their ports on your host, so we reach them by the
+  // host's name rather than by the address Testcontainers guesses. Docker Desktop
+  // defines that name for you, but a Linux host does not, so the runArgs line
+  // defines it there.
+  //
+  "containerEnv": {
+    "TESTCONTAINERS_HOST_OVERRIDE": "host.docker.internal"
+  },
+  "runArgs": ["--add-host=host.docker.internal:host-gateway"],
+
+  // --------------------------------------------------------------------------
+  // User
+  // --------------------------------------------------------------------------
+  //
   // The container runs as root. Mounting the host Docker socket is already
   // root-equivalent on the host, so a non-root user would not make you any safer
   // here and would only add uid-mapping and socket-group setup. One thing to know:
   // on a Linux host, files the container writes into your workspace will be owned by
   // root. macOS bind mounts remap ownership, so you won't see this there.
+  //
   "remoteUser": "root",
   "overrideCommand": true,
 
+  // --------------------------------------------------------------------------
+  // Editor Extensions
+  // --------------------------------------------------------------------------
+  //
+  // VS Code installs these inside the container for you: Java support, YAML
+  // for the workflow and issue forms, and EditorConfig for the formatting rules.
+  //
   "customizations": {
     "vscode": {
       "extensions": [

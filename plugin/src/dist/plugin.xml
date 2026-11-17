@@ -1,0 +1,16 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
+<pluginMetaData path="pontik-cluster">
+	<name>Pontik Cluster</name>
+	<author>Pontik Cluster</author>
+	<pluginVersion>@version@</pluginVersion>
+	<mirthVersion>@mirthVersion@</mirthVersion>
+	<url>https://github.com/izemomar/pontik-cluster</url>
+	<description>Makes sure at most one node in a cluster starts a poll for each protected channel, with automatic failover.</description>
+	<serverClasses>
+		<string>dev.pontik.cluster.engine.ClusterPlugin</string>
+	</serverClasses>
+	<library type="SHARED" path="pontik-cluster-shared.jar" />
+	<library type="SERVER" path="pontik-cluster-server.jar" />
+	<apiProvider type="SERVLET_INTERFACE" name="dev.pontik.cluster.api.ClusterServletInterface"/>
+	<apiProvider type="SERVER_CLASS" name="dev.pontik.cluster.api.ClusterServlet"/>
+</pluginMetaData>

@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: MPL-2.0
+#
+# --------------------------------------------------------------------------
+# Wall Clock
+# --------------------------------------------------------------------------
+#
+# Every call below reads this node's wall clock. The lease package never
+# makes one: the database clock decides when a lease runs out, and every
+# deadline this node keeps runs on System.nanoTime, so a clock that jumps
+# can never move a lease. The build checks the compiled lease classes
+# against this list, so a method reference or a static import is caught
+# as surely as a plain call.
+#
+
+@defaultMessage The lease package reads time only from System.nanoTime or the database clock
+
+java.lang.System#currentTimeMillis()
+
+java.time.Instant#now()
+java.time.Instant#now(java.time.Clock)
+java.time.LocalDate#now()
+java.time.LocalDate#now(java.time.ZoneId)
+java.time.LocalDate#now(java.time.Clock)
+java.time.LocalDateTime#now()
+java.time.LocalDateTime#now(java.time.ZoneId)
+java.time.LocalDateTime#now(java.time.Clock)
+java.time.LocalTime#now()
+java.time.LocalTime#now(java.time.ZoneId)
+java.time.LocalTime#now(java.time.Clock)
+java.time.OffsetDateTime#now()
+java.time.OffsetDateTime#now(java.time.ZoneId)
+java.time.OffsetDateTime#now(java.time.Clock)
+java.time.ZonedDateTime#now()
+java.time.ZonedDateTime#now(java.time.ZoneId)
+java.time.ZonedDateTime#now(java.time.Clock)
+
+java.time.Clock#systemUTC()
+java.time.Clock#systemDefaultZone()
+java.time.Clock#system(java.time.ZoneId)
+
+java.util.Date::new
+java.util.GregorianCalendar::new
+java.util.Calendar#getInstance()
+java.util.Calendar#getInstance(java.util.TimeZone)
+java.util.Calendar#getInstance(java.util.Locale)
+java.util.Calendar#getInstance(java.util.TimeZone,java.util.Locale)
+java.sql.Timestamp::new
+
+# java.util.Timer schedules on the wall clock, and our own lease Timer shares its name.
+java.util.Timer

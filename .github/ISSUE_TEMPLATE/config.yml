@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: MPL-2.0
+
+# --------------------------------------------------------------------------
+# Issue Chooser
+# --------------------------------------------------------------------------
+#
+# You may still open a blank issue to ask a question, as the contribution
+# guide invites. A security report goes through our security policy instead.
+#
+
+blank_issues_enabled: true
+contact_links:
+  - name: Security Vulnerability
+    url: https://github.com/izemomar/pontik-cluster/security/policy
+    about: Please report security vulnerabilities privately, as our security policy explains.

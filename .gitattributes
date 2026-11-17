@@ -1,0 +1,12 @@
+# --------------------------------------------------------------------------
+# Line Endings
+# --------------------------------------------------------------------------
+#
+# Git keeps each Gradle start script in the line endings its shell expects,
+# so ./gradlew still runs from a Windows checkout with core.autocrlf, and Git
+# never rewrites the wrapper jar.
+#
+
+/gradlew        text eol=lf
+*.bat           text eol=crlf
+*.jar           binary

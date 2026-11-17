@@ -4,14 +4,14 @@
 
 ## Supported Versions
 
-Security fixes are released for the latest version of Pontik Cluster.
+We release security fixes for the latest version of Pontik Cluster.
 
 ## Reporting a Vulnerability
 
 If you discover a security vulnerability within Pontik Cluster, please use the
 *Report a vulnerability* button under this repository's Security tab. If that is not
-available to you, send an email to oss@izem.dev instead. All security vulnerabilities
-will be promptly addressed.
+available to you, send an email to oss@izem.dev instead. We will promptly address
+every security vulnerability.
 
 To help us understand the problem, please include the version you are running, your
 engine and database versions, what you observed, and how we can reproduce it. If you

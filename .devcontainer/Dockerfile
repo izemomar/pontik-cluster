@@ -5,8 +5,8 @@
 # --------------------------------------------------------------------------
 #
 # This image gives you everything you need to build Pontik Cluster: JDK 21,
-# the Docker CLI with Compose for integration testing, and a warmed Gradle
-# distribution. Your workspace is mounted at runtime by devcontainer.json.
+# the Docker CLI with Compose, and a warmed Gradle distribution. Your
+# workspace is mounted at runtime by devcontainer.json.
 #
 # The base image is pinned by digest, so the tag can never move underneath
 # you. Resolved 2026-08-16: eclipse-temurin 21.0.11_10-jdk-noble, published
@@ -35,9 +35,7 @@ RUN set -eux; \
     apt-get install --no-install-recommends -y \
         ca-certificates \
         curl \
-        git \
-        jq \
-        make; \
+        git; \
     rm -rf /var/lib/apt/lists/*
 
 # --------------------------------------------------------------------------
@@ -49,7 +47,7 @@ RUN set -eux; \
 # inside it.
 #
 # Each download is verified against a pinned checksum. If a release is ever
-# republished under the same version, the build will fail instead of quietly
+# republished under the same version, the build will fail instead of
 # accepting it. The CLI checksums were resolved 2026-08-16, and the Compose
 # checksums come from the release's checksums.txt, resolved 2026-09-27.
 #
