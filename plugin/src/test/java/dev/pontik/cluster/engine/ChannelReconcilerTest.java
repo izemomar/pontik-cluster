@@ -293,6 +293,11 @@ class ChannelReconcilerTest {
         sweep();
         assertTrue(rig.local.operatorStop("ch-1"));
         assertEquals(0, engine.count("start ch-1"));
+
+        // Once the operator resumes it here, the row drops the stop, so the next owner starts it.
+        engine.set("ch-1", DeployedState.STARTED, DeployedState.STARTED);
+        sweep();
+        assertFalse(rig.local.operatorStop("ch-1"));
     }
 
     @Test
