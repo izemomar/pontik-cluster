@@ -283,6 +283,8 @@ class CoordinatorTest {
             assertTrue(c.ownership().mustStop("ch-1"));
             assertEquals(Collections.singletonList("pontik-cluster-fence"), threads);
             assertEquals(1, sink.count(Code.PC102));
+            // No tick has started for longer than two heartbeats, so the watchdog alerts too.
+            assertEquals(1, sink.count(Code.PC110));
         } finally {
             release.countDown();
             c.stop();
